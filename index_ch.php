@@ -61,8 +61,8 @@
 </div>
 <!--END WRAPPER-->
 <!--COPYRIGHT-->
-<div id="copyright">&copy; 2017 - Designed and developed by
-    <a href="http://resume.zhihuawei.xyz/" target="_blank" title="ZHIHUA·WEI">ZHIHUA·WEI</a><br>
+<div id="copyright">&copy; 2018 - Designed and developed by
+    <a href="http://resume.zhihuawei.xyz/" target="_blank" title="XU PENGYUAN">XU PENGYUAN</a><br>
     <a href="index.php" title="英文版">英文版</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;中文版&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="index.html" title="HTML版">HTML版</a>
 </div>
 <!--END COPYRIGHT-->
