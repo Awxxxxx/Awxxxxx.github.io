@@ -2,11 +2,11 @@
 
 /**
  * ===============================================
- * Created by ZHIHUA·WEI.
- * Author: ZHIHUA·WEI <zhihua_wei@foxmail.com>
+ * Created by XU PENGYUAN.
+ * Author: XUPENGYUAN <xxx@xxxxxxx.tw>
  * Date: 2017/12/25 0003
  * Time: Pm 15:03
- * Project: ZHIHUA.WEI Resume
+ * Project: XU PENGYUAN Resume
  * Version: 1.0.0
  * Power: Send Email
  * ===============================================
