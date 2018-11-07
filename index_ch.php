@@ -1,4 +1,4 @@
-<!DOCTYPE HTML>
+﻿<!DOCTYPE HTML>
 <html>
 <head>
     <!--BEGIN HEAD MATE-->
@@ -11,7 +11,7 @@
     <!--END HEAD MATE-->
 
     <!--BEGIN HEAD LINK SHORTCUT ICON-->
-    <link rel="shortcut icon" href="images/icon/zhihuawei_favicon32x32.ico">
+    <link rel="shortcut icon" href="images/icon/xupengyuan_favicon32x32.ico">
     <!--END HEAD LINK SHORTCUT ICON-->
 
     <!--BEGIN HEAD LINK STYLE-->
@@ -40,7 +40,7 @@
      * ===============================================
      * Created by XU PENGYUAN.
      * Author: XU PENGYUAN <xxx@xxxxxxx.tw>
-     * Date: 2018/19/5 0002
+     * Date: 2018/9/5 0002
      * Time: Am 11:54
      * Project: XU PENGYUAN - MYSELF
      * Version: 1.0.0

@@ -1,4 +1,4 @@
-<!DOCTYPE HTML>
+﻿<!DOCTYPE HTML>
 <html>
 <head>
     <!--BEGIN HEAD MATE-->
@@ -12,7 +12,7 @@
     <!--END HEAD MATE-->
 
     <!--BEGIN HEAD LINK SHORTCUT ICON-->
-    <link rel="shortcut icon" href="images/icon/zhihuawei_favicon32x32.ico">
+    <link rel="shortcut icon" href="images/icon/xupengyuan_favicon32x32.ico">
     <!--END HEAD LINK SHORTCUT ICON-->
 
     <!--BEGIN HEAD LINK STYLE-->
@@ -64,7 +64,7 @@
 </div>
 <!--END WRAPPER-->
 <!--COPYRIGHT-->
-<div id="copyright">&copy; 2017 - Designed and developed by
+<div id="copyright">&copy; 2018 - Designed and developed by
     <a href="https://weibo.com/xxxwqnmlgb" target="_blank" title="XU PENGYUAN">XU PENGYUAN</a><br>
     英文版&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="index_ch.php" title="中文版">中文版</a>&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;<a href="index.html" title="HTML版">HTML版</a>
 </div>
