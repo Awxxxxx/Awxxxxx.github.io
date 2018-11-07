@@ -1,53 +1,42 @@
 <!--RECOMMENDATIONS TITLE-->
-<h2 id="chat" class="sectionHead">Recommendations</h2>
-<!--RECOMMENDATIONS-->
-<ul id="recommends">
-	<li><h3>Zhengzhou WB Technology Co. Ltd.</h3></li>
-	<li>
-		<div class="details">
-			<h3>Qi Li</h3>
-			<h4>General Manager</h4>
-		</div>
-		<p>"Zhihua Wei's ability to work is very good, very consistent with the development needs of the
-			company."</p>
-	</li>
-	<li>
-		<div class="details">
-			<h3>Zhaoyong Bai</h3>
-			<h4>Project Manager</h4>
-		</div>
-		<p>"His ability to learn is very good, the new technology needed in the development is always fast to learn
-			to apply, and never to delay the time. This is great."</p>
-	</li>
+    <h2 id="chat" class="sectionHead">Recommendations</h2>
+    <!--RECOMMENDATIONS-->
+    <ul id="recommends">
+        <li><h3>ShiJiaZhuang SERVICE CO.,LTD.</h3></li>
+        <li>
+            <div class="details">
+                <h3>LI XX</h3>
+                <h4>General Manager</h4>
+            </div>
+            <p>"XU PENGYUAN's ability to work is very good and steady."</p>
+        </li>
+        <li>
+            <div class="details">
+                <h3>BAI XX</h3>
+                <h4>Project Manager</h4>
+            </div>
+            <p>"His ability to learn is very good, he will never need to ask for help, he will be able to solve it independently."</p>
+        </li>
 
-	<li><h3>MW Information Technology Co. Ltd.</h3></li>
-	<li>
-		<div class="details">
-			<h3>Junjie Cao</h3>
-			<h4>Java Engineer</h4>
-		</div>
-		<p>"His logical thinking ability is very good, the programming ability is very strong, and the code is very
-			standard, just like his person."</p>
-	</li>
+        <li><h3>LangFang RongFeng Plastic Products.</h3></li>
+        <li>
+            <div class="details">
+                <h3>CHEN XX</h3>
+                <h4>Foreign trade manager</h4>
+            </div>
+            <p>"I didn't expect to hire him to do so many things for the company. I feel that this little place is a little wronged."</p>
+        </li>
 
-	<li><h3>Huixin Technology Co. Ltd.</h3></li>
-	<li>
-		<div class="details">
-			<h3>Chungang Li</h3>
-			<h4>Manager</h4>
-		</div>
-		<p>"Zhihua Wei, Professional ability is very strong, the problem of independent thinking is always many
-			aspects. In a word, it is a very good person."</p>
-	</li>
-	<li>
-		<div class="details">
-			<h3>Fengnian Xu</h3>
-			<h4>UI Designer</h4>
-		</div>
-		<p>"He worked very smoothly with him and was able to work well in the team. He is a good friend in his work
-			and life."</p>
-	</li>
-</ul>
-<!--END RECOMMENDATIONS-->
+        <li><h3>Hebei Institute of Engineering and Technology</h3></li>
+        <li>
+            <div class="details">
+                <h3>XXX</h3>
+                <h4>CLASSMATE</h4>
+            </div>
+            <p>"XU PENGYUAN, Professional ability is very strong, and the game is good, the character is good, good, is a friend worthy of deep friendship"</p>
+        </li>
+       
+    </ul>
+    <!--END RECOMMENDATIONS-->
 
 <div class="clear"></div>
