@@ -1,270 +1,678 @@
-﻿<!DOCTYPE HTML>
-<html>
+<!DOCTYPE html>
+<html lang="zh-CN">
 <head>
-<!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-125408739-1"></script>
-<embed src="music\Whiskey.mp3" hidden="true" autostart="true" loop="true">
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+    <meta charset="UTF-8">
+    <!-- 移动端适配 meta 标签，禁止缩放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>实时天气</title>
+    <style>
+        /* =========================================
+           全局样式 (Global Styles)
+           ========================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* 使用系统默认无衬线字体，清晰易读 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
 
-  gtag('config', 'UA-125408739-1');
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 防止页面滚动，实现全屏应用感 */
+            color: #fff;
+            user-select: none; /* 防止长按选中文字 */
+        }
 
-</script>
+        /* 背景容器，用于展示动态天气效果 */
+        #weather-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            /* 默认背景渐变 */
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
+            transition: background 1s ease; /* 背景色切换时的平滑过渡 */
+        }
 
-    <!--BEGIN HEAD MATE-->
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <meta name="viewport" content="initial-scale=1.0,width=device-width"/>
-    <meta name="keywords" content="XUPENGYUAN">
-    <meta name="description" content="XXX">
-    <meta name="author" content="XU PENGYUAN">
-    <meta name="version" content="1.0.0">
-    <!--END HEAD MATE-->
+        /* =========================================
+           主内容区域 (Main Content)
+           ========================================= */
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* 垂直居中 */
+            align-items: center;     /* 水平居中 */
+            text-align: center;
+            padding: 20px;
+        }
 
-    <!--BEGIN HEAD LINK SHORTCUT ICON-->
-    <link rel="shortcut icon" href="images/icon/xupengyuan_favicon32x32.ico">
-    <!--END HEAD LINK SHORTCUT ICON-->
+        /* 顶部栏 (位置 & 按钮) */
+        .top-bar {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    <!--BEGIN HEAD LINK STYLE-->
-    <!--BASE STYLE CSS-->
-    <link rel="stylesheet" href="css/style.css" type="text/css" media="screen"/>
-    <!--PRODUCTION PHOTO CSS-->
-    <link rel="stylesheet" href="css/productionPhoto.css" type="text/css" media="screen"/>
-    <!--PRINT CSS-->
-    <link rel="stylesheet" href="css/print.css" type="text/css" media="print"/>
-    <!--END HEAD LINK STYLE-->
+        .location {
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
 
-    <!--BEGIN HEAD TITLE-->
-    <title>XU PENGYUAN - XXX.</title>
-    <!--END HEAD TITLE-->
+        /* 定位图标 (SVG Data URI) */
+        .location-icon {
+            width: 16px;
+            height: 16px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E");
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* 玻璃拟态按钮 */
+        .forecast-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(5px); /* 磨砂玻璃效果 */
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .forecast-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 中心天气展示 */
+        .weather-main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: fadeIn 1s ease-out; /* 进场动画 */
+        }
+
+        .temperature {
+            font-size: 6rem; /* 超大字号显示温度 */
+            font-weight: 200;
+            line-height: 1;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .weather-desc {
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        /* 生活指数容器 */
+        .life-index {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .life-item {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            padding: 10px 15px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 80px;
+        }
+
+        .life-item span:first-child {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+
+        .life-item span:last-child {
+            font-weight: 600;
+        }
+
+        /* 底部版权信息 */
+        .footer {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.7rem;
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        /* =========================================
+           未来天气弹窗 (Forecast Modal)
+           ========================================= */
+        #forecast-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none; /* 隐藏时不响应点击 */
+            transition: opacity 0.3s ease;
+        }
+
+        #forecast-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-btn {
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .forecast-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .forecast-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .forecast-date {
+            font-weight: 500;
+        }
+
+        .forecast-temp {
+            font-weight: 600;
+        }
+
+        /* =========================================
+           动画关键帧 (Animations)
+           ========================================= */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes rain {
+            0% { transform: translateY(-100vh); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        @keyframes lightning {
+            0%, 95%, 98% { opacity: 0; }
+            96%, 99% { opacity: 1; background: rgba(255,255,255,0.8); }
+        }
+
+        /* =========================================
+           动态背景元素 (Background Elements)
+           ========================================= */
+        .bg-element {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        /* 太阳 - CSS绘制 */
+        .sun {
+            top: 10%;
+            right: 10%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, #ffd700 40%, rgba(255, 215, 0, 0) 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 40px #ffd700;
+            animation: rotate 60s linear infinite;
+        }
+        
+        /* 月亮 - CSS绘制 */
+        .moon {
+            top: 10%;
+            right: 10%;
+            width: 80px;
+            height: 80px;
+            background: transparent;
+            border-radius: 50%;
+            box-shadow: -15px 15px 0 5px #f0f0f0;
+            transform: rotate(-45deg);
+        }
+
+        /* 云朵 - CSS绘制 */
+        .cloud {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+            position: absolute;
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        /* 雨滴 */
+        .raindrop {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.6);
+            top: -20px;
+        }
+
+        /* 闪电覆盖层 */
+        .lightning-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
 
-<!--BEGIN STICKER-->
-<div id="sticker"></div>
-<!--END STICKER-->
+    <!-- 背景容器 -->
+    <div id="weather-bg"></div>
 
-<!--BEGIN WRAPPER-->
-<div id="wrapper">
-
-    <!--INTRODUCE NAME-->
-    <h2 id="titleName" class="sectionHead">XU PENGYUAN</h2>
-
-    <!--BASE INFORMATION-->
-    <div id="bio">
-        <h2>Less is more.</h2>
-        <!--BASE INFORMATION - SOCIAL LINKS-->
-        <div id="socialIcons">
-            <a class="socialIcon" id="phoneIcon" href="tel:15613687980" title="call me"></a>
-            <a class="socialIcon" id="emailIcon" href="#xxx@xxxxxxx.tw" title="xxx@xxxxxxx.tw"></a>
-         
-            <a class="socialIcon" id="qqIcon" href="http://wpa.qq.com/msgrd?v=3&uin=xxx@svip520.cn" title="xxx@svip520.cn"></a>
-            <a class="socialIcon" target="_blank" id="weiboIcon" href="https://weibo.com/Lvxxxxx/" title="WeiBo"></a>
-
-            <!--MORE ICON OPTIOPS...
-            <a class="socialIcon" target="_blank" id="facebookIcon" href="#"></a>
-            <a class="socialIcon" target="_blank" id="favIcon" href="#"></a>
-            <a class="socialIcon" target="_blank" id="gplusIcon" href="#"></a>
-            <a class="socialIcon" target="_blank" id="youTubeIcon" href="#"></a>
-            -->
+    <!-- 主应用容器 -->
+    <div id="app">
+        <!-- 顶部栏 -->
+        <div class="top-bar">
+            <div class="location">
+                <div class="location-icon"></div>
+                <span id="location-text">定位中...</span>
+            </div>
+            <button class="forecast-btn" id="forecast-btn">未来天气</button>
         </div>
-        <!--END SOCIAL LINKS-->
 
-        <!--BASE INFORMATION - PERSONAL INFORMATION-->
-        <p>
-           Hello, I'm XU PENGYUAN, from Langfang, Hebei Province. I'm working in Beijing now. I made this personal website in my spare time.I hope I can get to know more interesting people through the Internet.
-	In life, I am also an optimistic person. Welcome to follow 
-          me on <a title="WeiBo" target="_blank" href="https://weibo.com/Lvxxxxx/">WeiBo</a>. 
-          I am very happy to record my life and share it with everyone.
-     
-      <!--PRODUCTION PHOTO-->
-		<!--IMAGES BELOW ARE HIDDEN AND WILL ONLY APPEAR IN THE GALLERY LINKED TO IN ABOVE PARAGRAPH -->
-		<a title="Company homepage" class="selectedWork" data-rel="prettyPhoto[pp_gal]"
-		   href="images/projectPhoto/home.png"></a>
-                <a title="Contact Us" class="selectedWork" data-rel="prettyPhoto[pp_gal]"
-		   href="images/projectPhoto/contactus.png"></a>
-                <a title="About Us" class="selectedWork" data-rel="prettyPhoto[pp_gal]"
-		   href="images/projectPhoto/aboutus.png"></a>
-                <a title="Products" class="selectedWork" data-rel="prettyPhoto[pp_gal]"
-		   href="images/projectPhoto/products.png"></a>
+        <!-- 中间主要天气信息 -->
+        <div class="weather-main">
+            <div class="temperature" id="current-temp">--°</div>
+            <div class="weather-desc" id="weather-desc">加载中...</div>
+            
+            <!-- 生活指数 -->
+            <div class="life-index" id="life-index">
+                <!-- 动态填充 -->
+            </div>
+        </div>
 
-        </p>
-        <!--END PERSONAL INFORMATION-->
+        <!-- 底部版权 -->
+        <footer class="footer">
+            Designed and developed by XU PENGYUAN
+        </footer>
     </div>
-    <!--END BASE INFORMATION-->
 
-    <div class="clear"></div>
-
-    <!--SKILLS TITLE-->
-    <h2 id="tools" class="sectionHead">Hobby</h2>
-    <!--SKILLS-->
-    <ul id="skills">
-        <!--Notice: the class names indicate the % of your skills. i.e. s70 = 70%, s40 = 40% etc. -->
-        <li id="skill1" class="s90"><span>movie</span></li>
-        <li id="skill2" class="s80"><span>Script kill</span></li>
-        <li id="skill3" class="s75"><span>music</span></li>
-        <li id="skill4" class="s90"><span>Computer Games</span></li>
-        <li id="skill5" class="s65"><span>Escape room</span></li>
-        <li id="skill6" class="s80"><span>science fiction</span></li>
-        <li id="skill7" class="s95"><span>cats</span></li>
-        <li id="skill8" class="s80"><span>traveling</span></li>
-        <li id="skill9" class="s40"><span><del>sleeping</del></span></li>
-    </ul>
-    <!--END SKILLS-->
-
-    <div class="clear"></div>
-
-    <!--EXPERIENCE TITLE-->
-    <h2 id="clock" class="sectionHead">work Experience</h2>
-    <!--EXPERIENCE-->
-    <ul id="jobs">
-        <li>
-            <div class="details">
-                <h3>LangFang RongFeng Plastic Products.</h3>
-                <h4>Webmaster - LangFang, HeBei</h4>
-                <h5>JUL 2018 - NOV 2018</h5>
+    <!-- 未来天气弹窗 -->
+    <div id="forecast-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">未来三天预报</div>
+                <div class="close-btn" id="close-modal">&times;</div>
             </div>
-            <p>Mainly engaged in the construction, design and maintenance of the company's official website
-              and Alibaba International Station, and is responsible for the production of pictures and videos
-              of companies and products and search engine optimization.</p>
-        </li>
-        <li>
-            <div class="details">
-                <h3>ByteDance</h3>
-                <h4>User operation - Beijing</h4>
-                <h5>Oct 2019 - Present</h5>
+            <div class="forecast-list" id="forecast-list">
+                <!-- 动态填充 -->
             </div>
-            <p>Mainly responsible for the operation and maintenance of live paying users, revenue data analysis, small event planning and product function promotion.</p>
-        </li>
-        
-    </ul>
-    <!--END EXPERIENCE-->
-
-    <div class="clear"></div>
-
-    <!--EDUCATION TITLE-->
-    <h2 id="learn" class="sectionHead">Education</h2>
-    <!--EDUCATION-->
-    <ul id="schools">
-        <li>
-            <div class="details">
-                <h3>Hebei Institute of Engineering and Technology</h3>
-                <h4>Degree Title - Bachelor</h4>
-                <h5>2014 - 2018</h5>
-            </div>
-            <p>Majored in communication engineering, with solid professional knowledge.</p>
-        </li>
-    </ul>
-    <!--END EDUCATION-->
-
-    <div class="clear"></div>
-
-    <!--HONORS / AWARDS TITLE-->
-    <h2 id="ribbon" class="sectionHead">Contact information</h2>
-
-    <!--HONORS / AWARDS-->
-    <ul id="Contact information">
-        
-        <li>QQ : xxx@svip520.cn / 779956123</li>
-        <li>Wechat : Vaskey</li>
-        <li>TikTok : Vaskey</li>
-        <li>Xbox : Lvxxxxx</li>
-        <li>E-mail : xxx@xxxxxxx.tw</li>
-        <li><del>Facebook : xxx@xxxxxxx.tw</del></li>
-    </ul>
-    <!--END HONORS / AWARDS-->
-
-
-
-    <div class="clear"></div>
-
-    <!--CONTACT TITLE-->
-    <h2 id="contact" class="sectionHead">Contact Me</h2>
-    <!--CONTACT FORM-->
-    <div id="contactform" class="contact">
-        <form action="sendMail.php" method="post">
-            <div id="contactInfo">
-                <p>
-                    <label class="smallInput" for="name">Name <span class="required">*</span></label><br/>
-                    <input type="text" name="name" id="name" value="" class="input round3"/>
-                </p>
-                <p>
-                    <label class="smallInput" for="email">Email <span class="required">*</span></label><br/>
-                    <input type="text" name="email" id="email" value="" class="input round3"/>
-                </p>
-                <p>
-                    <label class="smallInput" for="phone">Phone</label><br/>
-                    <input type="text" name="phone" id="phone" value="" class="input round3"/>
-                </p>
-            </div>
-            <p id="emailMessage">
-                <label class="smallInput" for="message">Message <span class="required">*</span></label><br/>
-                <textarea name="message" id="message" class="input round3"></textarea>
-            </p>
-
-            <!-- EMAIL SUBJECT -->
-            <input name="subject" id="subject" type="hidden" value="XU PENGYUAN Resume Email Message"/>
-            <!-- YOUR EMAIL ADDRESS -->
-            <input name="repemail" id="repemail" type="hidden" value="xxx@xxxxxxx.tw"/>
-            <!-- ENTER YOUR URL BELOW: MUST CONTAIN #contact AT THE END OF THE URL-->
-            <input name="pagelink" id="pagelink" type="hidden" value="https://resume.xxxxxxx.tw/index.html#return"/>
-            <input name="send" id="submit_btn" type="submit" class="round3 clearRight" value="Send Message"/>
-
-            <p id="required"><span class="required">*</span> <em>= Required field</em></p>
-        </form>
+        </div>
     </div>
-    <!--END CONTACT FORM-->
-    <p id="messageSent">Message sent. Thank you!</p>
 
-    <div class="clear"></div>
-</div>
-<!--END WRAPPER-->
-<!--COPYRIGHT-->
-<div id="copyright">&copy; 2021 - Designed and developed by
-    <a href="https://weibo.com/Lvxxxxx/" target="_blank" title="XU PENGYUAN">XU PENGYUAN</a><br>
-</div>
-<!--END COPYRIGHT-->
+    <script>
+        /**
+         * 全局配置
+         */
+        const API_KEY = 'U4xGAosgf7ukXzV4'; // 彩云天气API Key
+        // 默认坐标（北京天安门），用于定位失败时的回退
+        const DEFAULT_COORDS = { longitude: 116.4074, latitude: 39.9042 }; 
+        
+        // 星期几映射
+        const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
-<!--BEGIN SCRIPTS-->
-<!--BASIC JQUERY JS-->
-<script src="js/jquery.js"></script>
-<!--PROJECT PHOTO JS-->
-<script src="js/projectPhoto.js"></script>
-<!--BACK POSITION JS-->
-<script src="js/backPosition.js"></script>
-<!--CUSTOM JS-->
-<script src="js/custom.js"></script>
-<!--END SCRIPTS-->
-<script type="text/javascript">
-/* 鼠标特效 */
-var a_idx = 0;
-jQuery(document).ready(function($) {
-    $("body").click(function(e) {
-        var a = new Array("XU PENGYUAN", "XU PENGYUAN", "XU PENGYUAN");
-        var $i = $("<span />").text(a[a_idx]);
-        a_idx = (a_idx + 1) % a.length;
-        var x = e.pageX,
-        y = e.pageY;
-        $i.css({
-            "z-index": 999999999999999999999999999999999999999999999999999999999999999999999,
-            "top": y - 20,
-            "left": x,
-            "position": "absolute",
-            "font-weight": "bold",
-            "color": "#ff6651"
-        });
-        $("body").append($i);
-        $i.animate({
-            "top": y - 180,
-            "opacity": 0
-        },
-        1500,
-        function() {
-            $i.remove();
-        });
-    });
-});
-</script>
+        // 天气现象代码映射 (将API代码转为中文)
+        const SKYCON_MAP = {
+            'CLEAR_DAY': '晴', 'CLEAR_NIGHT': '晴',
+            'PARTLY_CLOUDY_DAY': '多云', 'PARTLY_CLOUDY_NIGHT': '多云',
+            'CLOUDY': '阴', 'WIND': '大风',
+            'LIGHT_HAZE': '轻度雾霾', 'MODERATE_HAZE': '中度雾霾', 'HEAVY_HAZE': '重度雾霾',
+            'LIGHT_RAIN': '小雨', 'MODERATE_RAIN': '中雨', 'HEAVY_RAIN': '大雨', 'STORM_RAIN': '暴雨',
+            'FOG': '雾',
+            'LIGHT_SNOW': '小雪', 'MODERATE_SNOW': '中雪', 'HEAVY_SNOW': '大雪', 'STORM_SNOW': '暴雪',
+            'DUST': '浮尘', 'SAND': '沙尘'
+        };
+
+        /**
+         * 初始化函数：页面加载时执行
+         */
+        function init() {
+            getLocation();
+            setupEventListeners();
+        }
+
+        /**
+         * 1. 获取用户位置
+         * 尝试使用浏览器地理定位 API
+         */
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        // 获取详细城市名称 (逆地理编码)
+                        getCityName(latitude, longitude);
+                        // 获取天气数据
+                        fetchWeatherData(longitude, latitude);
+                    },
+                    (error) => {
+                        console.warn("定位失败，使用默认位置", error);
+                        fetchWeatherData(DEFAULT_COORDS.longitude, DEFAULT_COORDS.latitude, true);
+                    }
+                );
+            } else {
+                fetchWeatherData(DEFAULT_COORDS.longitude, DEFAULT_COORDS.latitude, true);
+            }
+        }
+
+        /**
+         * 2. 获取城市名称 (逆地理编码)
+         * 使用 OpenStreetMap Nominatim 免费API
+         */
+        function getCityName(lat, lng) {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=zh-CN`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.address) {
+                        // 智能拼接地名：优先显示区县，没有则显示城市
+                        const city = data.address.city || data.address.town || data.address.village || data.address.county;
+                        const district = data.address.district || data.address.suburb || '';
+                        const name = district ? `${city} ${district}` : city;
+                        document.getElementById('location-text').innerText = name || "未知位置";
+                    }
+                })
+                .catch(err => {
+                    console.error("获取城市名称失败", err);
+                    document.getElementById('location-text').innerText = "当前位置";
+                });
+        }
+
+        /**
+         * 3. 获取天气数据
+         * 使用 JSONP 方式调用彩云天气 API 以避免跨域(CORS)问题，纯前端必备技巧
+         */
+        function fetchWeatherData(lng, lat, isDefault = false) {
+            if (isDefault) {
+                document.getElementById('location-text').innerText = "北京 (默认)";
+            }
+            
+            // 构建 JSONP URL
+            const callbackName = 'jsonpCallback_' + Date.now();
+            // 请求包含：实时(realtime)、未来几天(daily)、时区信息
+            const url = `https://api.caiyunapp.com/v2.6/${API_KEY}/${lng},${lat}/weather.jsonp?callback=${callbackName}&dailysteps=4`;
+
+            // 定义全局回调函数，API加载完成后会自动执行此函数
+            window[callbackName] = function(response) {
+                if (response.status === 'ok') {
+                    updateUI(response.result);
+                } else {
+                    alert('天气数据获取失败: ' + response.error);
+                }
+                // 清理脚本标签和全局变量
+                delete window[callbackName];
+                document.body.removeChild(script);
+            };
+
+            // 动态插入 script 标签发起请求
+            const script = document.createElement('script');
+            script.src = url;
+            document.body.appendChild(script);
+        }
+
+        /**
+         * 4. 更新界面 UI
+         */
+        function updateUI(data) {
+            const realtime = data.realtime;
+            const daily = data.daily;
+            
+            // 更新温度
+            document.getElementById('current-temp').innerText = Math.round(realtime.temperature) + '°';
+            
+            // 更新天气描述
+            const skycon = realtime.skycon;
+            const weatherText = SKYCON_MAP[skycon] || skycon;
+            document.getElementById('weather-desc').innerText = weatherText;
+
+            // 更新生活指数 (舒适度、紫外线等)
+            const lifeIndexContainer = document.getElementById('life-index');
+            lifeIndexContainer.innerHTML = '';
+            
+            const lifeData = realtime.life_index;
+            if (lifeData) {
+                if(lifeData.comfort) createLifeItem('舒适度', lifeData.comfort.desc);
+                if(lifeData.ultraviolet) createLifeItem('紫外线', lifeData.ultraviolet.desc);
+            }
+            // 补充显示湿度和风速
+            createLifeItem('湿度', (realtime.humidity * 100).toFixed(0) + '%');
+            createLifeItem('风速', realtime.wind.speed + 'km/h');
+
+
+            // 更新未来天气列表
+            const forecastList = document.getElementById('forecast-list');
+            forecastList.innerHTML = '';
+            
+            if (daily && daily.temperature) {
+                // 遍历未来3天 (跳过今天 index 0)
+                for (let i = 1; i <= 3 && i < daily.temperature.length; i++) {
+                    const dateStr = daily.temperature[i].date;
+                    const dateObj = new Date(dateStr);
+                    const dayName = WEEKDAYS[dateObj.getDay()];
+                    const maxTemp = Math.round(daily.temperature[i].max);
+                    const minTemp = Math.round(daily.temperature[i].min);
+                    const daySkycon = daily.skycon[i].value;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'forecast-item';
+                    item.innerHTML = `
+                        <div class="forecast-date">${dayName}</div>
+                        <div class="forecast-icon">${SKYCON_MAP[daySkycon] || daySkycon}</div>
+                        <div class="forecast-temp">${minTemp}° / ${maxTemp}°</div>
+                    `;
+                    forecastList.appendChild(item);
+                }
+            }
+
+            // 更新动态背景 (传入该地区的时区偏移)
+            updateBackground(skycon, data.tzshift);
+        }
+
+        // 辅助函数：创建生活指数卡片
+        function createLifeItem(title, value) {
+            const div = document.createElement('div');
+            div.className = 'life-item';
+            div.innerHTML = `<span>${title}</span><span>${value}</span>`;
+            document.getElementById('life-index').appendChild(div);
+        }
+
+        /**
+         * 5. 核心逻辑：根据天气和时间渲染动态背景
+         */
+        function updateBackground(skycon, tzshift) {
+            const bg = document.getElementById('weather-bg');
+            bg.innerHTML = ''; // 清空旧元素
+            
+            // 计算当地时间
+            let hour = new Date().getHours();
+            if (typeof tzshift === 'number') {
+                const now = new Date();
+                const utcTimestamp = now.getTime() + (now.getTimezoneOffset() * 60000);
+                const localDate = new Date(utcTimestamp + tzshift * 1000);
+                hour = localDate.getHours();
+            }
+
+            let isNight = hour >= 19 || hour <= 5;
+            let isEvening = (hour >= 17 && hour < 19);
+            
+            // 设定背景渐变色
+            let gradient = '';
+            if (isNight) {
+                gradient = 'linear-gradient(to bottom, #0f2027, #203a43, #2c5364)'; // 深夜黑蓝
+                // 夜晚如果是晴天或少云，显示月亮
+                if (skycon.includes('CLEAR') || skycon.includes('CLOUDY')) {
+                    const moon = document.createElement('div');
+                    moon.className = 'bg-element moon';
+                    bg.appendChild(moon);
+                }
+            } else if (isEvening) {
+                gradient = 'linear-gradient(to bottom, #ff512f, #dd2476)'; // 傍晚夕阳红
+            } else {
+                // 白天
+                if (skycon.includes('RAIN') || skycon.includes('CLOUDY') || skycon.includes('OVERCAST')) {
+                    gradient = 'linear-gradient(to bottom, #606c88, #3f4c6b)'; // 阴雨灰蓝
+                } else {
+                    gradient = 'linear-gradient(to bottom, #2980b9, #6dd5fa, #ffffff)'; // 晴天蓝白
+                }
+            }
+            bg.style.background = gradient;
+
+            // 添加天气动画元素
+            // 晴天 (白天显示太阳)
+            if ((skycon === 'CLEAR_DAY' || skycon === 'PARTLY_CLOUDY_DAY') && !isNight) {
+                const sun = document.createElement('div');
+                sun.className = 'bg-element sun';
+                bg.appendChild(sun);
+            }
+
+            // 多云 (添加飘动的云)
+            if (skycon.includes('CLOUDY') || skycon.includes('OVERCAST') || skycon.includes('PARTLY_CLOUDY')) {
+                addClouds(bg);
+            }
+
+            // 雨天 (添加雨滴)
+            if (skycon.includes('RAIN')) {
+                addRain(bg);
+            }
+
+            // 雷雨 (添加闪电 + 雨)
+            if (skycon.includes('STORM') || skycon.includes('THUNDER')) {
+                addRain(bg);
+                const lightning = document.createElement('div');
+                lightning.className = 'lightning-overlay';
+                lightning.style.animation = 'lightning 5s infinite';
+                bg.appendChild(lightning);
+            }
+        }
+
+        // 添加云朵
+        function addClouds(container) {
+            for (let i = 0; i < 3; i++) {
+                const cloud = document.createElement('div');
+                cloud.className = 'bg-element cloud';
+                // 随机位置和大小
+                const width = 100 + Math.random() * 100;
+                cloud.style.width = width + 'px';
+                cloud.style.height = (width * 0.6) + 'px';
+                cloud.style.top = (10 + Math.random() * 20) + '%';
+                cloud.style.left = (Math.random() * 80) + '%';
+                cloud.style.opacity = 0.6 + Math.random() * 0.4;
+                cloud.style.animationDuration = (10 + Math.random() * 20) + 's';
+                container.appendChild(cloud);
+            }
+        }
+
+        // 添加雨滴
+        function addRain(container) {
+            for (let i = 0; i < 50; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'raindrop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+                drop.style.animationDelay = Math.random() * 2 + 's';
+                drop.style.animationName = 'rain';
+                drop.style.animationIterationCount = 'infinite';
+                drop.style.animationTimingFunction = 'linear';
+                container.appendChild(drop);
+            }
+        }
+
+        // 绑定按钮点击事件
+        function setupEventListeners() {
+            const modal = document.getElementById('forecast-modal');
+            const btn = document.getElementById('forecast-btn');
+            const close = document.getElementById('close-modal');
+
+            btn.addEventListener('click', () => modal.classList.add('active'));
+            close.addEventListener('click', () => modal.classList.remove('active'));
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        }
+
+        // 启动应用
+        init();
+    </script>
 </body>
 </html>
