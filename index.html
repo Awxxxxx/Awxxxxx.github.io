@@ -630,50 +630,69 @@
             }
         }
 
-        // 3. 调用彩云天气 API 获取数据
-        async function getWeatherData(lat, lon) {
-            try {
-                // 并发请求实时天气和未来天天气
-                const [rtRes, dailyRes] = await Promise.all([
-                    fetch(`https://api.caiyunapp.com/v2.6/${CAIYUN_TOKEN}/${lon},${lat}/realtime`),
-                    fetch(`https://api.caiyunapp.com/v2.6/${CAIYUN_TOKEN}/${lon},${lat}/daily?dailysteps=3`)
-                ]);
-                
-                const rtData = await rtRes.json();
-                const dailyData = await dailyRes.json();
-                
-                // 处理实时天气数据
-                if (rtData.status === "ok") {
-                    renderRealtimeUI(rtData.result.realtime);
-                    updateBackground(rtData.result.realtime.skycon);
+        // 3. 调用彩云天气 API 获取数据 (使用 JSONP 解决 CORS 问题)
+        function getWeatherData(lat, lon) {
+            // 定义全局回调函数
+            window.handleWeatherResponse = function(data) {
+                if (data.status === "ok") {
+                    const result = data.result;
+                    // 渲染实时数据
+                    renderRealtimeUI(result.realtime, result.daily);
+                    updateBackground(result.realtime.skycon);
+                    // 渲染未来预报
+                    renderForecastUI(result.daily);
                 } else {
-                    throw new Error("实时天气获取失败");
-                }
-
-                // 处理未来天气数据
-                if (dailyData.status === "ok") {
-                    renderForecastUI(dailyData.result.daily);
-                } else {
-                    // 若限流或失败，展示 mock 数据
+                    console.error("API 返回错误:", data.error);
+                    document.getElementById('weather-desc').innerText = "服务暂不可用";
                     renderMockForecastUI();
                 }
-            } catch (e) {
-                console.error("天气数据获取异常:", e);
-                document.getElementById('weather-desc').innerText = "天气获取失败";
+                // 清理脚本标签
+                const script = document.getElementById('caiyun-jsonp');
+                if (script) script.remove();
+                delete window.handleWeatherResponse;
+            };
+
+            // 创建 script 标签发起 JSONP 请求
+            const script = document.createElement('script');
+            script.id = 'caiyun-jsonp';
+            // 使用综合接口 weather.jsonp，一次性获取实时和预报数据
+            script.src = `https://api.caiyunapp.com/v2.6/${CAIYUN_TOKEN}/${lon},${lat}/weather.jsonp?dailysteps=3&hourlysteps=24&callback=handleWeatherResponse`;
+            
+            script.onerror = () => {
+                console.error("JSONP 请求失败");
+                document.getElementById('weather-desc').innerText = "网络异常";
                 renderMockForecastUI();
-            }
+            };
+
+            document.body.appendChild(script);
         }
 
         // 渲染实时天气 UI
-        function renderRealtimeUI(realtime) {
+        function renderRealtimeUI(realtime, daily = null) {
             document.getElementById('temp-val').innerText = Math.round(realtime.temperature);
             document.getElementById('weather-desc').innerText = skyconMap[realtime.skycon] || "未知";
             
             // 生活指数
+            let comfort = "--";
+            let uv = "--";
+            
             if(realtime.life_index) {
-                document.getElementById('idx-comfort').innerText = realtime.life_index.comfort.desc;
-                document.getElementById('idx-uv').innerText = realtime.life_index.ultraviolet.desc;
+                // 如果实时数据里有（直接调 realtime 接口时）
+                comfort = realtime.life_index.comfort.desc;
+                uv = realtime.life_index.ultraviolet.desc;
+            } else if (daily && daily.life_index) {
+                // 如果是综合接口，生活指数在 daily 里
+                // 取今天(index 0)的数据
+                if (daily.life_index.comfort && daily.life_index.comfort[0]) {
+                    comfort = daily.life_index.comfort[0].desc;
+                }
+                if (daily.life_index.ultraviolet && daily.life_index.ultraviolet[0]) {
+                    uv = daily.life_index.ultraviolet[0].desc;
+                }
             }
+            
+            document.getElementById('idx-comfort').innerText = comfort;
+            document.getElementById('idx-uv').innerText = uv;
             document.getElementById('idx-humidity').innerText = Math.round(realtime.humidity * 100) + "%";
             document.getElementById('idx-wind').innerText = realtime.wind.speed + " km/h";
         }
