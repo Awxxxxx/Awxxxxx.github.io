@@ -541,6 +541,16 @@
 
         // 1. 获取用户地理位置
         function getLocation() {
+            // 首先检查是否在 HTTP 环境下运行（除 localhost 外，现代浏览器要求 HTTPS 才能使用 Geolocation）
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isHttps = window.location.protocol === 'https:';
+            
+            if (!isHttps && !isLocalhost) {
+                console.warn("地理位置 API 需要 HTTPS 环境");
+                handleLocationError();
+                return;
+            }
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     position => {
@@ -550,18 +560,26 @@
                         getWeatherData(lat, lon);
                     },
                     error => {
-                        console.warn("地理位置获取失败，使用默认坐标(北京):", error);
-                        // 降级使用北京坐标
-                        getCityName(39.9042, 116.4074);
-                        getWeatherData(39.9042, 116.4074);
+                        console.warn("地理位置获取失败:", error.message);
+                        handleLocationError();
                     },
-                    { timeout: 5000, maximumAge: 60000 }
+                    { 
+                        enableHighAccuracy: false, // 关闭高精度，加快定位速度
+                        timeout: 5000, 
+                        maximumAge: 60000 
+                    }
                 );
             } else {
-                // 浏览器不支持地理位置
-                getCityName(39.9042, 116.4074);
-                getWeatherData(39.9042, 116.4074);
+                console.warn("浏览器不支持地理位置");
+                handleLocationError();
             }
+        }
+        
+        // 处理定位失败的降级逻辑
+        function handleLocationError() {
+            // 降级使用北京坐标
+            getCityName(39.9042, 116.4074);
+            getWeatherData(39.9042, 116.4074);
         }
 
         // 2. 通过经纬度反查城市名称（使用免费的 OpenStreetMap Nominatim 接口）
