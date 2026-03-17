@@ -2,677 +2,816 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 移动端适配 meta 标签，禁止缩放 -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>树洞天气 - 天气看得见，心事说得出</title>
     <style>
-        /* =========================================
-           全局样式 (Global Styles)
-           ========================================= */
+        /* ================= Reset & Variables ================= */
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            /* 使用系统默认无衬线字体，清晰易读 */
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            overflow: hidden;
+            color: #ffffff;
+            /* 默认深色背景，防止加载闪烁 */
+            background: #1a1a2e; 
         }
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden; /* 防止页面滚动，实现全屏应用感 */
-            color: #fff;
-            user-select: none; /* 防止长按选中文字 */
-        }
-
-        /* 背景容器，用于展示动态天气效果 */
-        #weather-bg {
+        /* ================= Background Animation Layers ================= */
+        #bg-layer {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            /* 默认背景渐变 */
-            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
-            transition: background 1s ease; /* 背景色切换时的平滑过渡 */
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            transition: background 2s ease;
+            overflow: hidden;
+        }
+        /* 闪电层 */
+        #lightning-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #ffffff;
+            opacity: 0;
+            z-index: 2;
+            pointer-events: none;
         }
 
-        /* =========================================
-           主内容区域 (Main Content)
-           ========================================= */
+        /* 天气元素动画 */
+        .sun {
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 100px;
+            height: 100px;
+            background: #FFD700;
+            border-radius: 50%;
+            box-shadow: 0 0 60px #FFD700, 0 0 100px #FF8C00;
+            animation: pulse 4s infinite alternate;
+        }
+        .sun::after {
+            content: '';
+            position: absolute;
+            top: -20px; left: -20px; right: -20px; bottom: -20px;
+            background: rgba(255, 215, 0, 0.2);
+            border-radius: 50%;
+            animation: pulse 2s infinite alternate;
+        }
+        .moon {
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            width: 80px;
+            height: 80px;
+            background: #F4F6F0;
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255,255,255,0.8);
+        }
+        .star {
+            position: absolute;
+            background: #ffffff;
+            border-radius: 50%;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+            filter: blur(8px);
+        }
+
+        /* ================= Main UI Layout ================= */
         #app {
             position: relative;
-            width: 100%;
-            height: 100%;
+            z-index: 10;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center; /* 垂直居中 */
-            align-items: center;     /* 水平居中 */
-            text-align: center;
-            padding: 20px;
-        }
-
-        /* 顶部栏 (位置 & 按钮) */
-        .top-bar {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            padding: 0 20px;
-            display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 40px 20px;
+            background: rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(3px); /* 轻微模糊增强玻璃质感 */
         }
 
+        /* 右上角入口 */
+        .future-btn {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: #ffffff;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .future-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* 天气信息展示区 */
+        .weather-info {
+            text-align: center;
+            margin-top: 8vh;
+            width: 100%;
+            max-width: 600px;
+        }
+        /* 左上角定位 */
         .location {
+            position: absolute;
+            top: 30px;
+            left: 30px;
             font-size: 1.2rem;
-            font-weight: 500;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-weight: 300;
             display: flex;
             align-items: center;
-            gap: 5px;
-        }
-
-        /* 定位图标 (SVG Data URI) */
-        .location-icon {
-            width: 16px;
-            height: 16px;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E");
-            background-size: contain;
-            background-repeat: no-repeat;
-        }
-
-        /* 玻璃拟态按钮 */
-        .forecast-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
+            gap: 8px;
+            text-shadow: 1px 2px 4px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.15);
             padding: 8px 16px;
             border-radius: 20px;
-            cursor: pointer;
-            backdrop-filter: blur(5px); /* 磨砂玻璃效果 */
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-
-        .forecast-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* 中心天气展示 */
-        .weather-main {
+        .temp-wrapper {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            animation: fadeIn 1s ease-out; /* 进场动画 */
+            justify-content: center;
+            align-items: flex-start;
+            margin: 10px 0;
         }
-
-        .temperature {
-            font-size: 6rem; /* 超大字号显示温度 */
-            font-weight: 200;
+        .temp {
+            font-size: 9rem;
+            font-weight: 600;
             line-height: 1;
-            margin-bottom: 10px;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-shadow: 2px 4px 15px rgba(0,0,0,0.2);
         }
-
-        .weather-desc {
-            font-size: 1.5rem;
+        .temp-unit {
+            font-size: 3rem;
+            margin-top: 15px;
+            font-weight: 300;
+        }
+        .desc {
+            font-size: 1.8rem;
+            margin-bottom: 30px;
             font-weight: 400;
-            margin-bottom: 20px;
-            opacity: 0.9;
+            text-shadow: 1px 2px 4px rgba(0,0,0,0.3);
         }
-
-        /* 生活指数容器 */
-        .life-index {
+        
+        /* 生活指数 */
+        .indices {
             display: flex;
             gap: 15px;
-            margin-top: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
+            flex-wrap: nowrap;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 20px 25px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
-
-        .life-item {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(5px);
-            padding: 10px 15px;
-            border-radius: 12px;
-            font-size: 0.9rem;
+        .index-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 80px;
+            flex: 1;
+        }
+        .index-item span:first-child {
+            opacity: 0.8;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .index-item strong {
+            font-size: 1.1rem;
+            font-weight: 500;
         }
 
-        .life-item span:first-child {
-            font-size: 0.8rem;
-            opacity: 0.7;
-            margin-bottom: 4px;
-        }
-
-        .life-item span:last-child {
-            font-weight: 600;
-        }
-
-        /* 底部版权信息 */
-        .footer {
-            position: absolute;
-            bottom: 20px;
+        /* 树洞心事输入区 */
+        .mind-hole {
+            margin-bottom: 3vh;
             width: 100%;
+            max-width: 500px;
+        }
+        .mind-title {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            opacity: 0.9;
             text-align: center;
-            font-size: 0.7rem;
-            opacity: 0.6;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 30px;
+            padding: 6px 6px 6px 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            transition: border-color 0.3s;
+        }
+        .input-group:focus-within {
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+        .input-group input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 10px 0;
+            color: #ffffff;
+            font-size: 1rem;
+            outline: none;
+        }
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        .submit-btn {
+            background: #ffffff;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s, background 0.3s;
+            margin-left: 10px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        .submit-btn:hover {
+            transform: scale(1.05);
+            background: #f0f0f0;
+        }
+        .submit-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #333333;
+        }
+
+        /* 底部版权 */
+        .footer {
+            font-size: 0.8rem;
+            opacity: 0.5;
+            padding-bottom: 10px;
             letter-spacing: 1px;
         }
 
-        /* =========================================
-           未来天气弹窗 (Forecast Modal)
-           ========================================= */
-        #forecast-modal {
+        /* ================= Components ================= */
+        /* 未来天气弹窗 */
+        .modal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px);
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
             z-index: 100;
-            display: flex;
+            display: none;
             justify-content: center;
             align-items: center;
             opacity: 0;
-            pointer-events: none; /* 隐藏时不响应点击 */
             transition: opacity 0.3s ease;
         }
-
-        #forecast-modal.active {
+        .modal.show {
+            display: flex;
             opacity: 1;
-            pointer-events: auto;
         }
-
         .modal-content {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 30px;
+            border-radius: 20px;
             width: 90%;
             max-width: 400px;
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            color: #fff;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            position: relative;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
         }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 10px;
+        .modal.show .modal-content {
+            transform: translateY(0);
         }
-
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
         .close-btn {
-            font-size: 1.5rem;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.8rem;
             cursor: pointer;
-            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.3s;
         }
-
-        .forecast-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+        .close-btn:hover {
+            opacity: 1;
         }
-
+        .modal-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 15px;
+            font-weight: 500;
+        }
         .forecast-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
+        .forecast-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .forecast-date { flex: 1; opacity: 0.9; }
+        .forecast-weather { flex: 1; text-align: center; font-weight: 500; }
+        .forecast-temp { flex: 1; text-align: right; opacity: 0.9; }
 
-        .forecast-date {
+        /* Toast 提示 */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 1rem;
             font-weight: 500;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
         }
 
-        .forecast-temp {
-            font-weight: 600;
+        /* ================= Keyframes ================= */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.1); opacity: 1; }
         }
-
-        /* =========================================
-           动画关键帧 (Animations)
-           ========================================= */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
         @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            0% { transform: translateX(-150px); }
+            100% { transform: translateX(100vw); }
+        }
+        @keyframes fall {
+            0% { transform: translateY(-10vh); opacity: 1; }
+            100% { transform: translateY(110vh); opacity: 0; }
+        }
+        @keyframes flash {
+            0%, 95%, 100% { opacity: 0; }
+            96%, 98% { opacity: 0.8; }
+            97% { opacity: 0; }
+        }
+        @keyframes flyAway {
+            0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+            20% { transform: translate(-10px, 10px) scale(0.9) rotate(-10deg); opacity: 1; }
+            100% { transform: translate(150px, -150px) scale(0.5) rotate(45deg); opacity: 0; }
+        }
+        .fly {
+            animation: flyAway 1s forwards ease-in-out;
         }
 
-        @keyframes rain {
-            0% { transform: translateY(-100vh); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateY(100vh); opacity: 0; }
-        }
-
-        @keyframes lightning {
-            0%, 95%, 98% { opacity: 0; }
-            96%, 99% { opacity: 1; background: rgba(255,255,255,0.8); }
-        }
-
-        /* =========================================
-           动态背景元素 (Background Elements)
-           ========================================= */
-        .bg-element {
-            position: absolute;
-            pointer-events: none;
-        }
-
-        /* 太阳 - CSS绘制 */
-        .sun {
-            top: 10%;
-            right: 10%;
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle, #ffd700 40%, rgba(255, 215, 0, 0) 70%);
-            border-radius: 50%;
-            box-shadow: 0 0 40px #ffd700;
-            animation: rotate 60s linear infinite;
-        }
-        
-        /* 月亮 - CSS绘制 */
-        .moon {
-            top: 10%;
-            right: 10%;
-            width: 80px;
-            height: 80px;
-            background: transparent;
-            border-radius: 50%;
-            box-shadow: -15px 15px 0 5px #f0f0f0;
-            transform: rotate(-45deg);
-        }
-
-        /* 云朵 - CSS绘制 */
-        .cloud {
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50px;
-            position: absolute;
-            animation: float 6s ease-in-out infinite;
-        }
-        
-        /* 雨滴 */
-        .raindrop {
-            position: absolute;
-            width: 2px;
-            height: 20px;
-            background: rgba(255, 255, 255, 0.6);
-            top: -20px;
-        }
-
-        /* 闪电覆盖层 */
-        .lightning-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0;
-            pointer-events: none;
+        /* ================= Responsive ================= */
+        @media (max-width: 600px) {
+            .temp { font-size: 6.5rem; }
+            .temp-unit { font-size: 2rem; margin-top: 10px; }
+            .desc { font-size: 1.5rem; margin-bottom: 20px; }
+            .indices {
+                flex-wrap: wrap;
+                gap: 15px;
+                padding: 15px;
+            }
+            .index-item {
+                flex: 0 0 45%; /* 手机端每行两个 */
+                margin-bottom: 5px;
+            }
+            .future-btn {
+                top: 20px;
+                right: 20px;
+                font-size: 0.9rem;
+                padding: 8px 16px;
+            }
+            .location {
+                top: 20px;
+                left: 20px;
+                font-size: 1rem;
+                padding: 6px 12px;
+            }
+            #app { padding: 20px; }
+            .weather-info { margin-top: 10vh; }
         }
     </style>
 </head>
 <body>
+    <!-- 动态背景层 -->
+    <div id="bg-layer"></div>
+    
+    <!-- 雷阵雨闪电层 -->
+    <div id="lightning-layer"></div>
 
-    <!-- 背景容器 -->
-    <div id="weather-bg"></div>
-
-    <!-- 主应用容器 -->
+    <!-- 主体内容 -->
     <div id="app">
-        <!-- 顶部栏 -->
-        <div class="top-bar">
-            <div class="location">
-                <div class="location-icon"></div>
-                <span id="location-text">定位中...</span>
-            </div>
-            <button class="forecast-btn" id="forecast-btn">未来天气</button>
+        <button class="future-btn" onclick="openModal()">未来天气</button>
+        
+        <div class="location">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+            <span id="loc-text">定位中...</span>
         </div>
 
-        <!-- 中间主要天气信息 -->
-        <div class="weather-main">
-            <div class="temperature" id="current-temp">--°</div>
-            <div class="weather-desc" id="weather-desc">加载中...</div>
+        <div class="weather-info">
+            <div class="temp-wrapper">
+                <div class="temp" id="temp-val">--</div>
+                <div class="temp-unit">°</div>
+            </div>
             
-            <!-- 生活指数 -->
-            <div class="life-index" id="life-index">
-                <!-- 动态填充 -->
+            <div class="desc" id="weather-desc">获取中...</div>
+            
+            <div class="indices">
+                <div class="index-item">
+                    <span>舒适度</span>
+                    <strong id="idx-comfort">--</strong>
+                </div>
+                <div class="index-item">
+                    <span>紫外线</span>
+                    <strong id="idx-uv">--</strong>
+                </div>
+                <div class="index-item">
+                    <span>相对湿度</span>
+                    <strong id="idx-humidity">--</strong>
+                </div>
+                <div class="index-item">
+                    <span>风速</span>
+                    <strong id="idx-wind">--</strong>
+                </div>
             </div>
         </div>
-
-        <!-- 底部版权 -->
-        <footer class="footer">
-            Designed and developed by XU PENGYUAN
-        </footer>
+        
+        <div class="mind-hole">
+            <div class="mind-title">今日心事</div>
+            <div class="input-group">
+                <input type="text" id="mind-input" placeholder="把心事说给树洞，安全不留痕" autocomplete="off">
+                <button class="submit-btn" onclick="submitMind()" aria-label="发送">
+                    <svg id="plane-icon" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="footer">Designed and developed by XU PENGYUAN</div>
     </div>
-
+    
     <!-- 未来天气弹窗 -->
-    <div id="forecast-modal">
+    <div class="modal" id="forecast-modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <div class="modal-title">未来三天预报</div>
-                <div class="close-btn" id="close-modal">&times;</div>
-            </div>
-            <div class="forecast-list" id="forecast-list">
-                <!-- 动态填充 -->
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div class="modal-title">未来三天天气</div>
+            <div id="forecast-list">
+                <!-- 预报数据将通过 JS 动态注入 -->
+                <div style="text-align: center; padding: 20px; opacity: 0.7;">加载中...</div>
             </div>
         </div>
     </div>
+    
+    <!-- 提示框 -->
+    <div class="toast" id="toast">树洞听到啦</div>
 
     <script>
-        /**
-         * 全局配置
-         */
-        const API_KEY = 'U4xGAosgf7ukXzV4'; // 彩云天气API Key
-        // 默认坐标（北京天安门），用于定位失败时的回退
-        const DEFAULT_COORDS = { longitude: 116.4074, latitude: 39.9042 }; 
+        // 彩云天气 API Token
+        const CAIYUN_TOKEN = "U4xGAosgf7ukXzV4";
         
-        // 星期几映射
-        const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
-        // 天气现象代码映射 (将API代码转为中文)
-        const SKYCON_MAP = {
-            'CLEAR_DAY': '晴', 'CLEAR_NIGHT': '晴',
-            'PARTLY_CLOUDY_DAY': '多云', 'PARTLY_CLOUDY_NIGHT': '多云',
-            'CLOUDY': '阴', 'WIND': '大风',
-            'LIGHT_HAZE': '轻度雾霾', 'MODERATE_HAZE': '中度雾霾', 'HEAVY_HAZE': '重度雾霾',
-            'LIGHT_RAIN': '小雨', 'MODERATE_RAIN': '中雨', 'HEAVY_RAIN': '大雨', 'STORM_RAIN': '暴雨',
-            'FOG': '雾',
-            'LIGHT_SNOW': '小雪', 'MODERATE_SNOW': '中雪', 'HEAVY_SNOW': '大雪', 'STORM_SNOW': '暴雪',
-            'DUST': '浮尘', 'SAND': '沙尘'
+        // 天气现象映射表
+        const skyconMap = {
+            "CLEAR_DAY": "晴",
+            "CLEAR_NIGHT": "晴",
+            "PARTLY_CLOUDY_DAY": "多云",
+            "PARTLY_CLOUDY_NIGHT": "多云",
+            "CLOUDY": "阴",
+            "LIGHT_HAZE": "轻度霾",
+            "MODERATE_HAZE": "中度霾",
+            "HEAVY_HAZE": "重度霾",
+            "LIGHT_RAIN": "小雨",
+            "MODERATE_RAIN": "中雨",
+            "HEAVY_RAIN": "大雨",
+            "STORM_RAIN": "暴雨",
+            "THUNDER_SHOWER": "雷阵雨",
+            "FOG": "雾",
+            "LIGHT_SNOW": "小雪",
+            "MODERATE_SNOW": "中雪",
+            "HEAVY_SNOW": "大雪",
+            "STORM_SNOW": "暴雪",
+            "DUST": "浮尘",
+            "SAND": "沙尘暴",
+            "WIND": "大风"
         };
 
-        /**
-         * 初始化函数：页面加载时执行
-         */
-        function init() {
+        // 页面加载完成后初始化
+        window.onload = () => {
+            // 默认展示一个晴天背景
+            updateBackground("CLEAR_DAY");
             getLocation();
-            setupEventListeners();
-        }
+            
+            // 监听回车键提交心事
+            document.getElementById('mind-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    submitMind();
+                }
+            });
+        };
 
-        /**
-         * 1. 获取用户位置
-         * 尝试使用浏览器地理定位 API
-         */
+        // 1. 获取用户地理位置
         function getLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        // 获取详细城市名称 (逆地理编码)
-                        getCityName(latitude, longitude);
-                        // 获取天气数据
-                        fetchWeatherData(longitude, latitude);
+                    position => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        getCityName(lat, lon);
+                        getWeatherData(lat, lon);
                     },
-                    (error) => {
-                        console.warn("定位失败，使用默认位置", error);
-                        fetchWeatherData(DEFAULT_COORDS.longitude, DEFAULT_COORDS.latitude, true);
-                    }
+                    error => {
+                        console.warn("地理位置获取失败，使用默认坐标(北京):", error);
+                        // 降级使用北京坐标
+                        getCityName(39.9042, 116.4074);
+                        getWeatherData(39.9042, 116.4074);
+                    },
+                    { timeout: 5000, maximumAge: 60000 }
                 );
             } else {
-                fetchWeatherData(DEFAULT_COORDS.longitude, DEFAULT_COORDS.latitude, true);
+                // 浏览器不支持地理位置
+                getCityName(39.9042, 116.4074);
+                getWeatherData(39.9042, 116.4074);
             }
         }
 
-        /**
-         * 2. 获取城市名称 (逆地理编码)
-         * 使用 OpenStreetMap Nominatim 免费API
-         */
-        function getCityName(lat, lng) {
-            const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=zh-CN`;
-            
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.address) {
-                        // 智能拼接地名：优先显示区县，没有则显示城市
-                        const city = data.address.city || data.address.town || data.address.village || data.address.county;
-                        const district = data.address.district || data.address.suburb || '';
-                        const name = district ? `${city} ${district}` : city;
-                        document.getElementById('location-text').innerText = name || "未知位置";
-                    }
-                })
-                .catch(err => {
-                    console.error("获取城市名称失败", err);
-                    document.getElementById('location-text').innerText = "当前位置";
+        // 2. 通过经纬度反查城市名称（使用免费的 OpenStreetMap Nominatim 接口）
+        async function getCityName(lat, lon) {
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`, {
+                    headers: { 'Accept-Language': 'zh-CN' }
                 });
-        }
-
-        /**
-         * 3. 获取天气数据
-         * 使用 JSONP 方式调用彩云天气 API 以避免跨域(CORS)问题，纯前端必备技巧
-         */
-        function fetchWeatherData(lng, lat, isDefault = false) {
-            if (isDefault) {
-                document.getElementById('location-text').innerText = "北京 (默认)";
-            }
-            
-            // 构建 JSONP URL
-            const callbackName = 'jsonpCallback_' + Date.now();
-            // 请求包含：实时(realtime)、未来几天(daily)、时区信息
-            const url = `https://api.caiyunapp.com/v2.6/${API_KEY}/${lng},${lat}/weather.jsonp?callback=${callbackName}&dailysteps=4`;
-
-            // 定义全局回调函数，API加载完成后会自动执行此函数
-            window[callbackName] = function(response) {
-                if (response.status === 'ok') {
-                    updateUI(response.result);
+                const data = await res.json();
+                if (data && data.address) {
+                    // 优先取 city，没有取 town 或 county
+                    const city = data.address.city || data.address.town || data.address.county || "未知城市";
+                    const district = data.address.suburb || data.address.district || "";
+                    document.getElementById('loc-text').innerText = district ? `${city} ${district}` : city;
                 } else {
-                    alert('天气数据获取失败: ' + response.error);
+                    document.getElementById('loc-text').innerText = "当前位置";
                 }
-                // 清理脚本标签和全局变量
-                delete window[callbackName];
-                document.body.removeChild(script);
-            };
-
-            // 动态插入 script 标签发起请求
-            const script = document.createElement('script');
-            script.src = url;
-            document.body.appendChild(script);
+            } catch (e) {
+                console.error("反查城市失败", e);
+                document.getElementById('loc-text').innerText = "当前位置";
+            }
         }
 
-        /**
-         * 4. 更新界面 UI
-         */
-        function updateUI(data) {
-            const realtime = data.realtime;
-            const daily = data.daily;
-            
-            // 更新温度
-            document.getElementById('current-temp').innerText = Math.round(realtime.temperature) + '°';
-            
-            // 更新天气描述
-            const skycon = realtime.skycon;
-            const weatherText = SKYCON_MAP[skycon] || skycon;
-            document.getElementById('weather-desc').innerText = weatherText;
-
-            // 更新生活指数 (舒适度、紫外线等)
-            const lifeIndexContainer = document.getElementById('life-index');
-            lifeIndexContainer.innerHTML = '';
-            
-            const lifeData = realtime.life_index;
-            if (lifeData) {
-                if(lifeData.comfort) createLifeItem('舒适度', lifeData.comfort.desc);
-                if(lifeData.ultraviolet) createLifeItem('紫外线', lifeData.ultraviolet.desc);
-            }
-            // 补充显示湿度和风速
-            createLifeItem('湿度', (realtime.humidity * 100).toFixed(0) + '%');
-            createLifeItem('风速', realtime.wind.speed + 'km/h');
-
-
-            // 更新未来天气列表
-            const forecastList = document.getElementById('forecast-list');
-            forecastList.innerHTML = '';
-            
-            if (daily && daily.temperature) {
-                // 遍历未来3天 (跳过今天 index 0)
-                for (let i = 1; i <= 3 && i < daily.temperature.length; i++) {
-                    const dateStr = daily.temperature[i].date;
-                    const dateObj = new Date(dateStr);
-                    const dayName = WEEKDAYS[dateObj.getDay()];
-                    const maxTemp = Math.round(daily.temperature[i].max);
-                    const minTemp = Math.round(daily.temperature[i].min);
-                    const daySkycon = daily.skycon[i].value;
-                    
-                    const item = document.createElement('div');
-                    item.className = 'forecast-item';
-                    item.innerHTML = `
-                        <div class="forecast-date">${dayName}</div>
-                        <div class="forecast-icon">${SKYCON_MAP[daySkycon] || daySkycon}</div>
-                        <div class="forecast-temp">${minTemp}° / ${maxTemp}°</div>
-                    `;
-                    forecastList.appendChild(item);
-                }
-            }
-
-            // 更新动态背景 (传入该地区的时区偏移)
-            updateBackground(skycon, data.tzshift);
-        }
-
-        // 辅助函数：创建生活指数卡片
-        function createLifeItem(title, value) {
-            const div = document.createElement('div');
-            div.className = 'life-item';
-            div.innerHTML = `<span>${title}</span><span>${value}</span>`;
-            document.getElementById('life-index').appendChild(div);
-        }
-
-        /**
-         * 5. 核心逻辑：根据天气和时间渲染动态背景
-         */
-        function updateBackground(skycon, tzshift) {
-            const bg = document.getElementById('weather-bg');
-            bg.innerHTML = ''; // 清空旧元素
-            
-            // 计算当地时间
-            let hour = new Date().getHours();
-            if (typeof tzshift === 'number') {
-                const now = new Date();
-                const utcTimestamp = now.getTime() + (now.getTimezoneOffset() * 60000);
-                const localDate = new Date(utcTimestamp + tzshift * 1000);
-                hour = localDate.getHours();
-            }
-
-            let isNight = hour >= 19 || hour <= 5;
-            let isEvening = (hour >= 17 && hour < 19);
-            
-            // 设定背景渐变色
-            let gradient = '';
-            if (isNight) {
-                gradient = 'linear-gradient(to bottom, #0f2027, #203a43, #2c5364)'; // 深夜黑蓝
-                // 夜晚如果是晴天或少云，显示月亮
-                if (skycon.includes('CLEAR') || skycon.includes('CLOUDY')) {
-                    const moon = document.createElement('div');
-                    moon.className = 'bg-element moon';
-                    bg.appendChild(moon);
-                }
-            } else if (isEvening) {
-                gradient = 'linear-gradient(to bottom, #ff512f, #dd2476)'; // 傍晚夕阳红
-            } else {
-                // 白天
-                if (skycon.includes('RAIN') || skycon.includes('CLOUDY') || skycon.includes('OVERCAST')) {
-                    gradient = 'linear-gradient(to bottom, #606c88, #3f4c6b)'; // 阴雨灰蓝
+        // 3. 调用彩云天气 API 获取数据
+        async function getWeatherData(lat, lon) {
+            try {
+                // 并发请求实时天气和未来天天气
+                const [rtRes, dailyRes] = await Promise.all([
+                    fetch(`https://api.caiyunapp.com/v2.6/${CAIYUN_TOKEN}/${lon},${lat}/realtime`),
+                    fetch(`https://api.caiyunapp.com/v2.6/${CAIYUN_TOKEN}/${lon},${lat}/daily?dailysteps=3`)
+                ]);
+                
+                const rtData = await rtRes.json();
+                const dailyData = await dailyRes.json();
+                
+                // 处理实时天气数据
+                if (rtData.status === "ok") {
+                    renderRealtimeUI(rtData.result.realtime);
+                    updateBackground(rtData.result.realtime.skycon);
                 } else {
-                    gradient = 'linear-gradient(to bottom, #2980b9, #6dd5fa, #ffffff)'; // 晴天蓝白
+                    throw new Error("实时天气获取失败");
                 }
-            }
-            bg.style.background = gradient;
 
-            // 添加天气动画元素
-            // 晴天 (白天显示太阳)
-            if ((skycon === 'CLEAR_DAY' || skycon === 'PARTLY_CLOUDY_DAY') && !isNight) {
-                const sun = document.createElement('div');
-                sun.className = 'bg-element sun';
-                bg.appendChild(sun);
-            }
-
-            // 多云 (添加飘动的云)
-            if (skycon.includes('CLOUDY') || skycon.includes('OVERCAST') || skycon.includes('PARTLY_CLOUDY')) {
-                addClouds(bg);
-            }
-
-            // 雨天 (添加雨滴)
-            if (skycon.includes('RAIN')) {
-                addRain(bg);
-            }
-
-            // 雷雨 (添加闪电 + 雨)
-            if (skycon.includes('STORM') || skycon.includes('THUNDER')) {
-                addRain(bg);
-                const lightning = document.createElement('div');
-                lightning.className = 'lightning-overlay';
-                lightning.style.animation = 'lightning 5s infinite';
-                bg.appendChild(lightning);
+                // 处理未来天气数据
+                if (dailyData.status === "ok") {
+                    renderForecastUI(dailyData.result.daily);
+                } else {
+                    // 若限流或失败，展示 mock 数据
+                    renderMockForecastUI();
+                }
+            } catch (e) {
+                console.error("天气数据获取异常:", e);
+                document.getElementById('weather-desc').innerText = "天气获取失败";
+                renderMockForecastUI();
             }
         }
 
-        // 添加云朵
-        function addClouds(container) {
+        // 渲染实时天气 UI
+        function renderRealtimeUI(realtime) {
+            document.getElementById('temp-val').innerText = Math.round(realtime.temperature);
+            document.getElementById('weather-desc').innerText = skyconMap[realtime.skycon] || "未知";
+            
+            // 生活指数
+            if(realtime.life_index) {
+                document.getElementById('idx-comfort').innerText = realtime.life_index.comfort.desc;
+                document.getElementById('idx-uv').innerText = realtime.life_index.ultraviolet.desc;
+            }
+            document.getElementById('idx-humidity').innerText = Math.round(realtime.humidity * 100) + "%";
+            document.getElementById('idx-wind').innerText = realtime.wind.speed + " km/h";
+        }
+
+        // 渲染未来三天预报 UI
+        function renderForecastUI(daily) {
+            const listContainer = document.getElementById('forecast-list');
+            listContainer.innerHTML = "";
+            const dayLabels = ["今天", "明天", "后天"];
+            
             for (let i = 0; i < 3; i++) {
-                const cloud = document.createElement('div');
-                cloud.className = 'bg-element cloud';
-                // 随机位置和大小
-                const width = 100 + Math.random() * 100;
-                cloud.style.width = width + 'px';
-                cloud.style.height = (width * 0.6) + 'px';
-                cloud.style.top = (10 + Math.random() * 20) + '%';
-                cloud.style.left = (Math.random() * 80) + '%';
-                cloud.style.opacity = 0.6 + Math.random() * 0.4;
-                cloud.style.animationDuration = (10 + Math.random() * 20) + 's';
-                container.appendChild(cloud);
+                if (!daily.temperature[i]) break;
+                
+                const skycon = daily.skycon[i].value;
+                const tempMin = Math.round(daily.temperature[i].min);
+                const tempMax = Math.round(daily.temperature[i].max);
+                // 取日期 MM-DD
+                const dateStr = daily.temperature[i].date.substring(5, 10); 
+                
+                const html = `
+                    <div class="forecast-item">
+                        <div class="forecast-date">${dayLabels[i]} <span style="font-size:0.8em; opacity:0.7; margin-left:5px;">${dateStr}</span></div>
+                        <div class="forecast-weather">${skyconMap[skycon] || "未知"}</div>
+                        <div class="forecast-temp">${tempMin}° ~ ${tempMax}°</div>
+                    </div>
+                `;
+                listContainer.innerHTML += html;
             }
         }
 
-        // 添加雨滴
-        function addRain(container) {
-            for (let i = 0; i < 50; i++) {
-                const drop = document.createElement('div');
-                drop.className = 'raindrop';
-                drop.style.left = Math.random() * 100 + '%';
-                drop.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
-                drop.style.animationDelay = Math.random() * 2 + 's';
-                drop.style.animationName = 'rain';
-                drop.style.animationIterationCount = 'infinite';
-                drop.style.animationTimingFunction = 'linear';
-                container.appendChild(drop);
+        // Mock 预报数据（兜底）
+        function renderMockForecastUI() {
+            const listContainer = document.getElementById('forecast-list');
+            listContainer.innerHTML = `
+                <div class="forecast-item"><div class="forecast-date">今天</div><div class="forecast-weather">多云</div><div class="forecast-temp">15° ~ 22°</div></div>
+                <div class="forecast-item"><div class="forecast-date">明天</div><div class="forecast-weather">晴</div><div class="forecast-temp">18° ~ 25°</div></div>
+                <div class="forecast-item"><div class="forecast-date">后天</div><div class="forecast-weather">小雨</div><div class="forecast-temp">14° ~ 19°</div></div>
+            `;
+        }
+
+        // 4. 根据天气和时间更新动态背景
+        function updateBackground(skycon) {
+            const hour = new Date().getHours();
+            const bgLayer = document.getElementById('bg-layer');
+            const lightningLayer = document.getElementById('lightning-layer');
+            
+            // 清空之前的特效
+            bgLayer.innerHTML = ""; 
+            lightningLayer.style.animation = "";
+            
+            let bgGradient = "";
+            let isNight = false;
+            
+            // 判断时间段 (中午/白天、傍晚、深夜)
+            if (hour >= 6 && hour < 17) {
+                // 白天 (清晨到下午)
+                bgGradient = "linear-gradient(135deg, #4A90E2, #87CEEB)";
+            } else if (hour >= 17 && hour < 19) {
+                // 傍晚 (黄昏)
+                bgGradient = "linear-gradient(135deg, #FF7E5F, #FEB47B)";
+            } else {
+                // 深夜
+                bgGradient = "linear-gradient(135deg, #0f2027, #203a43)";
+                isNight = true;
+            }
+            bgLayer.style.background = bgGradient;
+            
+            // 渲染具体天气特效
+            if (skycon.includes("CLEAR")) {
+                // 晴天
+                if (!isNight) {
+                    bgLayer.innerHTML += `<div class="sun"></div>`;
+                } else {
+                    bgLayer.innerHTML += `<div class="moon"></div>`;
+                    // 添加星星
+                    for(let i = 0; i < 40; i++) {
+                        const x = Math.random() * 100;
+                        const y = Math.random() * 60; // 星星主要在上半部分
+                        const delay = Math.random() * 3;
+                        const size = Math.random() * 2 + 1;
+                        bgLayer.innerHTML += `<div class="star" style="top:${y}%; left:${x}%; width:${size}px; height:${size}px; animation: pulse 2s infinite alternate ${delay}s;"></div>`;
+                    }
+                }
+            } 
+            else if (skycon.includes("CLOUD") || skycon === "阴") {
+                // 多云 / 阴天
+                // 如果是阴天，背景稍微变灰暗
+                if (skycon === "CLOUDY" && !isNight) {
+                    bgLayer.style.background = "linear-gradient(135deg, #606c88, #3f4c6b)";
+                }
+                for(let i = 0; i < 6; i++) {
+                    const top = 5 + Math.random() * 30;
+                    const delay = Math.random() * -20;
+                    const duration = 20 + Math.random() * 15;
+                    const scale = 0.6 + Math.random() * 0.8;
+                    const opacity = isNight ? 0.2 : 0.6;
+                    bgLayer.innerHTML += `
+                        <div class="cloud" style="top:${top}%; left:-30%; width:150px; height:50px; background:rgba(255,255,255,${opacity}); transform:scale(${scale}); animation: float ${duration}s linear infinite ${delay}s;"></div>
+                    `;
+                }
+            }
+            
+            if (skycon.includes("RAIN")) {
+                // 雨天 (涵盖所有雨)
+                if (!isNight) {
+                    bgLayer.style.background = "linear-gradient(135deg, #4b6cb7, #182848)";
+                }
+                // 雨滴
+                for(let i = 0; i < 80; i++) {
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 2;
+                    const duration = 0.4 + Math.random() * 0.4;
+                    bgLayer.innerHTML += `
+                        <div style="position:absolute; top:-20px; left:${left}%; width:2px; height:20px; background:rgba(255,255,255,0.5); animation: fall ${duration}s linear infinite ${delay}s;"></div>
+                    `;
+                }
+                // 雷雨天气触发闪电
+                if (skycon === "STORM_RAIN" || skycon === "THUNDER_SHOWER") {
+                    lightningLayer.style.animation = "flash 6s infinite";
+                }
+            }
+            
+            if (skycon.includes("SNOW")) {
+                // 雪天
+                for(let i = 0; i < 60; i++) {
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 5;
+                    const duration = 3 + Math.random() * 4;
+                    const size = 3 + Math.random() * 4;
+                    bgLayer.innerHTML += `
+                        <div style="position:absolute; top:-20px; left:${left}%; width:${size}px; height:${size}px; background:#ffffff; border-radius:50%; filter:blur(1px); animation: fall ${duration}s linear infinite ${delay}s;"></div>
+                    `;
+                }
             }
         }
 
-        // 绑定按钮点击事件
-        function setupEventListeners() {
+        // 5. 弹窗控制逻辑
+        function openModal() {
+            document.getElementById('forecast-modal').classList.add('show');
+        }
+        function closeModal() {
+            document.getElementById('forecast-modal').classList.remove('show');
+        }
+        // 点击弹窗外部关闭
+        window.onclick = function(event) {
             const modal = document.getElementById('forecast-modal');
-            const btn = document.getElementById('forecast-btn');
-            const close = document.getElementById('close-modal');
-
-            btn.addEventListener('click', () => modal.classList.add('active'));
-            close.addEventListener('click', () => modal.classList.remove('active'));
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.classList.remove('active');
-            });
+            if (event.target == modal) {
+                closeModal();
+            }
         }
 
-        // 启动应用
-        init();
+        // 6. 心事提交与动画
+        let isSubmitting = false;
+        function submitMind() {
+            if (isSubmitting) return;
+            const input = document.getElementById('mind-input');
+            const text = input.value.trim();
+            if (!text) return; // 为空不提交
+            
+            isSubmitting = true;
+            const icon = document.getElementById('plane-icon');
+            // 添加飞走动画类
+            icon.classList.add('fly');
+            
+            // 动画执行结束后处理
+            setTimeout(() => {
+                showToast("树洞听到啦");
+                input.value = "";
+                // 移除动画类，恢复原位
+                icon.classList.remove('fly');
+                isSubmitting = false;
+            }, 1000);
+        }
+        
+        // 展现 Toast 提示
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
     </script>
 </body>
 </html>
