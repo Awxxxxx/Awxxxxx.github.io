@@ -541,6 +541,7 @@
 
         // 1. 获取用户地理位置
         function getLocation() {
+            window.hasLoadedData = false;
             // 首先检查是否在 HTTP 环境下运行（除 localhost 外，现代浏览器要求 HTTPS 才能使用 Geolocation）
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const isHttps = window.location.protocol === 'https:';
@@ -552,14 +553,25 @@
             }
 
             if (navigator.geolocation) {
+                // 设置一个超时保护，防止 navigator.geolocation 卡死
+                const locationTimeout = setTimeout(() => {
+                    console.warn("地理位置获取超时保护触发");
+                    handleLocationError();
+                }, 5000);
+
                 navigator.geolocation.getCurrentPosition(
                     position => {
+                        clearTimeout(locationTimeout);
+                        if (window.hasLoadedData) return;
+                        window.hasLoadedData = true;
+                        
                         const lat = position.coords.latitude;
                         const lon = position.coords.longitude;
                         getCityName(lat, lon);
                         getWeatherData(lat, lon);
                     },
                     error => {
+                        clearTimeout(locationTimeout);
                         console.warn("地理位置获取失败:", error.message);
                         handleLocationError();
                     },
@@ -578,16 +590,30 @@
         // 处理定位失败的降级逻辑
         function handleLocationError() {
             // 降级使用北京坐标
-            getCityName(39.9042, 116.4074);
-            getWeatherData(39.9042, 116.4074);
+            const defaultLat = 39.9042;
+            const defaultLon = 116.4074;
+            // 避免重复请求
+            if (window.hasLoadedData) return;
+            window.hasLoadedData = true;
+            
+            document.getElementById('loc-text').innerText = "北京市";
+            getWeatherData(defaultLat, defaultLon);
         }
 
         // 2. 通过经纬度反查城市名称（使用免费的 OpenStreetMap Nominatim 接口）
         async function getCityName(lat, lon) {
             try {
+                // 添加 User-Agent，Nominatim 接口要求必须有 User-Agent 否则可能被拒绝
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`, {
-                    headers: { 'Accept-Language': 'zh-CN' }
+                    headers: { 
+                        'Accept-Language': 'zh-CN',
+                    }
                 });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
                 const data = await res.json();
                 if (data && data.address) {
                     // 优先取 city，没有取 town 或 county
@@ -595,11 +621,12 @@
                     const district = data.address.suburb || data.address.district || "";
                     document.getElementById('loc-text').innerText = district ? `${city} ${district}` : city;
                 } else {
-                    document.getElementById('loc-text').innerText = "当前位置";
+                    document.getElementById('loc-text').innerText = "未知位置";
                 }
             } catch (e) {
                 console.error("反查城市失败", e);
-                document.getElementById('loc-text').innerText = "当前位置";
+                // 失败时也给个默认文本，避免一直显示"定位中"
+                document.getElementById('loc-text').innerText = "未知位置";
             }
         }
 
