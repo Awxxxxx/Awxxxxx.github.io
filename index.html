@@ -27,36 +27,9 @@
             width: 100vw;
             height: 100vh;
             z-index: 1;
-            transition: background 3s ease;
+            transition: background 2s ease;
             overflow: hidden;
-            perspective: 1000px;
         }
-        
-        /* 镜头光晕层 (Lens Flare) */
-        #lens-flare-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            pointer-events: none;
-            z-index: 3;
-            opacity: 0;
-            transition: opacity 2s ease;
-            mix-blend-mode: screen;
-        }
-        
-        /* 雾气层 */
-        #fog-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            pointer-events: none;
-            z-index: 4;
-            opacity: 0;
-            background: 
-                radial-gradient(ellipse at center, transparent 20%, rgba(255,255,255,0.4) 100%),
-                linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.6) 100%);
-            transition: opacity 3s ease;
-            filter: blur(20px);
-        }
-
         /* 闪电层 */
         #lightning-layer {
             position: absolute;
@@ -70,212 +43,46 @@
             pointer-events: none;
         }
 
-        /* ================= 天气元素动画 ================= */
-        /* 太阳及光晕 */
-        .sun-container {
-            position: absolute;
-            top: 10%;
-            left: 20%;
-            width: 150px;
-            height: 150px;
-            z-index: 1;
-        }
+        /* 天气元素动画 */
         .sun {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            margin-top: -60px;
-            margin-left: -60px;
-            width: 120px;
-            height: 120px;
-            background: radial-gradient(circle at 50% 50%, #FFFFFF 0%, #FFF5E1 30%, #FFD700 70%, #FF8C00 100%);
-            border-radius: 50%;
-            box-shadow: 
-                0 0 60px #FFD700, 
-                0 0 150px #FF8C00, 
-                0 0 300px rgba(255, 140, 0, 0.8),
-                inset -10px -10px 20px rgba(255,140,0,0.5);
-            animation: pulse 4s infinite alternate;
-        }
-        /* 真实阳光射线 */
-        .sun-ray {
-            position: absolute;
-            top: 50%; left: 50%;
-            width: 400px; height: 400px;
-            margin-top: -200px; margin-left: -200px;
-            background: repeating-conic-gradient(
-                from 0deg, 
-                rgba(255, 255, 255, 0.4) 0deg 5deg, 
-                transparent 5deg 15deg,
-                rgba(255, 230, 150, 0.2) 15deg 20deg,
-                transparent 20deg 35deg
-            );
-            border-radius: 50%;
-            animation: spin 60s linear infinite;
-            pointer-events: none;
-            filter: blur(4px);
-        }
-        /* 光晕圆环 (Lens Flare components) */
-        .flare-circle {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            pointer-events: none;
-            filter: blur(2px);
-        }
-        .flare-1 { width: 300px; height: 300px; top: 40%; left: 45%; border-color: rgba(150, 200, 255, 0.4); background: radial-gradient(circle, rgba(150,200,255,0.2) 0%, transparent 70%); }
-        .flare-2 { width: 100px; height: 100px; top: 60%; left: 60%; border-color: rgba(255, 150, 200, 0.3); background: rgba(255, 150, 200, 0.1); }
-        .flare-3 { width: 50px; height: 50px; top: 75%; left: 75%; background: rgba(200, 255, 150, 0.4); filter: blur(5px); border: none; }
-        .flare-4 { width: 400px; height: 10px; top: 15%; left: -20%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent); transform: rotate(-30deg); filter: blur(3px); }
-
-        /* 月亮及陨石坑 */
-        .moon-container {
             position: absolute;
             top: 15%;
             left: 15%;
-            width: 120px;
-            height: 120px;
-            z-index: 1;
+            width: 100px;
+            height: 100px;
+            background: #FFD700;
+            border-radius: 50%;
+            box-shadow: 0 0 60px #FFD700, 0 0 100px #FF8C00;
+            animation: pulse 4s infinite alternate;
+        }
+        .sun::after {
+            content: '';
+            position: absolute;
+            top: -20px; left: -20px; right: -20px; bottom: -20px;
+            background: rgba(255, 215, 0, 0.2);
+            border-radius: 50%;
+            animation: pulse 2s infinite alternate;
         }
         .moon {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 30% 30%, #ffffff 0%, #e0e0e0 40%, #a0a0a0 100%);
+            top: 15%;
+            left: 15%;
+            width: 80px;
+            height: 80px;
+            background: #F4F6F0;
             border-radius: 50%;
-            box-shadow: 
-                0 0 80px rgba(255,255,255,0.6), 
-                0 0 150px rgba(200,220,255,0.3),
-                inset -20px -20px 40px rgba(0,0,0,0.5);
-            overflow: hidden;
-            animation: floatGently 10s ease-in-out infinite alternate;
+            box-shadow: 0 0 40px rgba(255,255,255,0.8);
         }
-        /* 月亮表面纹理 */
-        .moon::before {
-            content: '';
-            position: absolute;
-            top: 25px; left: 25px; width: 25px; height: 25px;
-            border-radius: 50%;
-            background: rgba(0,0,0,0.15);
-            box-shadow: 
-                35px 20px 0 8px rgba(0,0,0,0.12), 
-                15px 50px 0 -4px rgba(0,0,0,0.18), 
-                55px 45px 0 4px rgba(0,0,0,0.1),
-                -10px 40px 0 -5px rgba(0,0,0,0.15),
-                40px -10px 0 -2px rgba(0,0,0,0.1);
-            filter: blur(1px);
-        }
-        /* 月晕 */
-        .moon-halo {
-            position: absolute;
-            top: 50%; left: 50%;
-            margin-top: -150px; margin-left: -150px;
-            width: 300px; height: 300px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 60%);
-            pointer-events: none;
-            animation: pulse 6s infinite alternate;
-        }
-
-        /* 星空 */
         .star {
             position: absolute;
             background: #ffffff;
             border-radius: 50%;
-            box-shadow: 0 0 10px #ffffff, 0 0 20px rgba(255,255,255,0.5);
-        }
-        .shooting-star {
-            position: absolute;
-            width: 200px;
-            height: 2px;
-            background: linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(255,200,200,0.8) 20%, rgba(255,255,255,0) 100%);
-            border-radius: 2px;
-            transform: rotate(-45deg);
-            animation: shooting 4s linear infinite;
-            opacity: 0;
-            box-shadow: 0 0 10px rgba(255,255,255,0.8);
-        }
-
-        /* 云层 - 体积云 */
-        .cloud-group {
-            position: absolute;
-            animation: float 40s linear infinite;
-            will-change: transform;
         }
         .cloud {
             position: absolute;
-            background: linear-gradient(to bottom, #ffffff 0%, #f0f0f0 100%);
-            border-radius: 100px;
-            box-shadow: 
-                inset -5px -10px 20px rgba(0,0,0,0.05), 
-                0 15px 40px rgba(0,0,0,0.15);
-            filter: blur(1px);
-        }
-        .cloud::before, .cloud::after {
-            content: '';
-            position: absolute;
-            background: linear-gradient(to bottom, #ffffff 0%, #e8e8e8 100%);
-            border-radius: 50%;
-        }
-        .cloud::before {
-            width: 60%; height: 160%;
-            top: -70%; left: 15%;
-            box-shadow: inset -5px 5px 15px rgba(255,255,255,0.5);
-        }
-        .cloud::after {
-            width: 50%; height: 120%;
-            top: -50%; right: 15%;
-            box-shadow: inset 5px 5px 15px rgba(255,255,255,0.5);
-        }
-        /* 乌云/积雨云 */
-        .dark-cloud {
-            background: linear-gradient(to bottom, #7a8292 0%, #4a5262 100%) !important;
-            box-shadow: 
-                inset -5px -10px 20px rgba(0,0,0,0.4), 
-                0 20px 50px rgba(0,0,0,0.6) !important;
-        }
-        .dark-cloud::before, .dark-cloud::after {
-            background: linear-gradient(to bottom, #8a92a2 0%, #5a6272 100%) !important;
-            box-shadow: inset -5px 5px 15px rgba(255,255,255,0.1) !important;
-        }
-
-        /* 真实的雨滴 */
-        .raindrop {
-            position: absolute;
-            background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(200,230,255,0.6) 80%, rgba(255,255,255,0.9) 100%);
-            border-radius: 50% 50% 2px 2px;
-            will-change: transform, opacity;
-        }
-        /* 雨滴落地水花 */
-        .splash {
-            position: absolute;
-            bottom: 0;
-            width: 20px;
-            height: 5px;
-            border: 1px solid rgba(255,255,255,0.5);
-            border-radius: 50%;
-            opacity: 0;
-            transform: scale(0);
-            animation: splashAnim 0.5s ease-out;
-        }
-
-        /* 真实的雪花 */
-        .snowflake {
-            position: absolute;
-            background: radial-gradient(circle at 30% 30%, #ffffff 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 100%);
-            border-radius: 50%;
-            box-shadow: 0 0 5px rgba(255,255,255,0.5);
-            will-change: transform;
-        }
-
-        /* 霾/沙尘/烟雾 */
-        .haze-particle {
-            position: absolute;
-            background: radial-gradient(circle, rgba(200,180,150,0.1) 0%, transparent 70%);
-            border-radius: 50%;
-            animation: floatGently 8s ease-in-out infinite alternate, spin 20s linear infinite;
-            filter: blur(10px);
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50px;
+            filter: blur(8px);
         }
 
         /* ================= Main UI Layout ================= */
@@ -557,49 +364,19 @@
         /* ================= Keyframes ================= */
         @keyframes pulse {
             0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(1.05); opacity: 1; }
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            100% { transform: scale(1.1); opacity: 1; }
         }
         @keyframes float {
-            0% { transform: translateX(-200px); }
+            0% { transform: translateX(-150px); }
             100% { transform: translateX(100vw); }
         }
-        @keyframes rainFall {
-            0% { transform: translateY(-10vh) rotate(15deg); opacity: 0; }
-            10% { opacity: 1; }
-            80% { opacity: 1; }
-            100% { transform: translateY(110vh) rotate(15deg); opacity: 0; }
-        }
-        @keyframes snowFall {
-            0% { transform: translateY(-10vh); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
+        @keyframes fall {
+            0% { transform: translateY(-10vh); opacity: 1; }
             100% { transform: translateY(110vh); opacity: 0; }
-        }
-        @keyframes sway {
-            0% { margin-left: -30px; }
-            100% { margin-left: 30px; }
-        }
-        @keyframes floatGently {
-            0% { transform: translateY(-10px); }
-            100% { transform: translateY(10px); }
-        }
-        @keyframes splashAnim {
-            0% { transform: scale(0); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 0; }
-        }
-        @keyframes shooting {
-            0% { transform: translate(0, 0) rotate(-45deg) scale(1); opacity: 0; }
-            10% { transform: translate(-50px, 50px) rotate(-45deg) scale(1); opacity: 1; }
-            30% { transform: translate(-300px, 300px) rotate(-45deg) scale(0.2); opacity: 0; }
-            100% { opacity: 0; }
         }
         @keyframes flash {
             0%, 95%, 100% { opacity: 0; }
-            96%, 98% { opacity: 0.9; }
+            96%, 98% { opacity: 0.8; }
             97% { opacity: 0; }
         }
         @keyframes flyAway {
@@ -646,17 +423,6 @@
     <!-- 动态背景层 -->
     <div id="bg-layer"></div>
     
-    <!-- 镜头光晕层 -->
-    <div id="lens-flare-layer">
-        <div class="flare-circle flare-1"></div>
-        <div class="flare-circle flare-2"></div>
-        <div class="flare-circle flare-3"></div>
-        <div class="flare-circle flare-4"></div>
-    </div>
-    
-    <!-- 雾气层 -->
-    <div id="fog-layer"></div>
-    
     <!-- 雷阵雨闪电层 -->
     <div id="lightning-layer"></div>
 
@@ -682,7 +448,7 @@
             
             <div class="indices">
                 <div class="index-item">
-                    <span>体感温度</span>
+                    <span>舒适度</span>
                     <strong id="idx-comfort">--</strong>
                 </div>
                 <div class="index-item">
@@ -732,43 +498,47 @@
 
     <script>
         // 天气现象映射表 (Apple WeatherKit)
-        const weatherkitConditionMap = {
+        const weatherKitMap = {
             "Clear": "晴",
             "MostlyClear": "大部晴朗",
-            "PartlyCloudy": "局部多云",
+            "PartlyCloudy": "多云",
             "MostlyCloudy": "大部多云",
             "Cloudy": "阴",
-            "Fog": "雾",
-            "Haze": "霾",
-            "Smoke": "烟雾",
-            "Dust": "浮尘",
-            "Windy": "大风",
             "Breezy": "微风",
+            "Windy": "大风",
             "Drizzle": "毛毛雨",
+            "HeavyRain": "大雨",
             "Rain": "雨",
             "Showers": "阵雨",
-            "HeavyRain": "大雨",
-            "Thunderstorm": "雷阵雨",
-            "ScatteredThunderstorms": "局部雷阵雨",
-            "IsolatedThunderstorms": "局部雷阵雨",
-            "SevereThunderstorm": "强雷阵雨",
-            "Snow": "雪",
+            "Flurries": "阵雪",
             "HeavySnow": "大雪",
+            "MixedRainAndSleet": "雨夹雪",
+            "MixedRainAndSnow": "雨夹雪",
+            "MixedRainFall": "降雨",
+            "MixedSnowAndSleet": "雨夹雪",
+            "ScatteredSnowShowers": "零星阵雪",
+            "ScatteredShowers": "零星阵雨",
+            "Sleet": "冰雨",
+            "Snow": "雪",
             "SnowShowers": "阵雪",
-            "Flurries": "小雪",
-            "Blizzard": "暴雪",
+            "Blizzard": "暴风雪",
             "BlowingSnow": "吹雪",
             "FreezingDrizzle": "冻毛毛雨",
             "FreezingRain": "冻雨",
-            "MixedRainAndSleet": "雨夹雪",
-            "MixedRainAndSnow": "雨夹雪",
-            "MixedSnowAndSleet": "雨夹雪",
+            "Frigid": "严寒",
             "Hail": "冰雹",
+            "Hot": "炎热",
             "Hurricane": "飓风",
+            "IsolatedThunderstorms": "局部雷暴",
+            "SevereThunderstorm": "强雷暴",
+            "Thunderstorm": "雷暴",
+            "ScatteredThunderstorms": "零星雷暴",
             "Tornado": "龙卷风",
             "TropicalStorm": "热带风暴",
-            "Hot": "炎热",
-            "Frigid": "严寒"
+            "Dust": "浮尘",
+            "Fog": "雾",
+            "Haze": "霾",
+            "Smoke": "烟雾"
         };
 
         // 页面加载完成后初始化
@@ -788,10 +558,11 @@
         // 1. 获取用户地理位置
         function getLocation() {
             window.hasLoadedData = false;
+            // 首先检查是否在 HTTP 环境下运行
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const isHttps = window.location.protocol === 'https:';
             
-            if (!isHttps && !isLocalhost && window.location.protocol !== 'file:') {
+            if (!isHttps && !isLocalhost) {
                 console.warn("地理位置 API 需要 HTTPS 环境");
                 handleLocationError();
                 return;
@@ -843,7 +614,7 @@
             getWeatherData(defaultLat, defaultLon);
         }
 
-        // 2. 通过经纬度反查城市名称（使用免费的 OpenStreetMap Nominatim 接口）
+        // 2. 通过经纬度反查城市名称
         async function getCityName(lat, lon) {
             try {
                 const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`, {
@@ -852,9 +623,7 @@
                     }
                 });
                 
-                if (!res.ok) {
-                    throw new Error(`HTTP error! status: ${res.status}`);
-                }
+                if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 
                 const data = await res.json();
                 if (data && data.address) {
@@ -870,56 +639,25 @@
             }
         }
 
-        // 3. 请求本地代理服务器获取天气数据
+        // 3. 调用后端接口获取 WeatherKit 数据
         async function getWeatherData(lat, lon) {
             try {
-                console.log("Starting to fetch weather data for", lat, lon);
-                
-                // 请求本地 Node.js 服务器
-                // 动态获取当前访问的域名和协议
-                const host = window.location.hostname;
-                const port = window.location.port;
-                const protocol = window.location.protocol;
-                
-                // 尝试从前端直接调用 Apple WeatherKit，如果之前可以，说明原来可能没有走代理
-                // 这里为了安全，建议仅用于测试或临时方案，因为会将 Private Key 暴露在前端
-                const url = `https://weatherkit.apple.com/api/v1/weather/zh-CN/${lat}/${lon}?dataSets=currentWeather,forecastDaily`;
-                
-                // 为了兼容之前的工作方式，我们在这里回退到某种可能的前端直接请求方式
-                // 或者你之前调用的是其他第三方的免费天气 API？
-                
-                // 由于目前代码里强制请求 /api/weather，这是后端的路由，所以在 GitHub Pages 绝对会 404
-                // 我们暂时恢复为请求本地或你可能有的其他接口
-                let baseUrl = '';
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    baseUrl = 'http://localhost:8000';
-                }
-                const fetchUrl = baseUrl ? `${baseUrl}/api/weather?lat=${lat}&lon=${lon}` : `/api/weather?lat=${lat}&lon=${lon}`;
-                
-                console.log("Requesting API:", fetchUrl);
-                
-                const response = await fetch(fetchUrl);
-                
-                console.log("Server API Response Status:", response.status);
-                
+                const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("Server API Error Response Body:", errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
                 const data = await response.json();
-                console.log("Weather Data received successfully");
                 
-                // 渲染实时数据
-                renderRealtimeUI(data.currentWeather);
-                updateBackground(data.currentWeather.conditionCode);
-                // 渲染未来预报
-                renderForecastUI(data.forecastDaily);
-                
+                if (data.currentWeather && data.forecastDaily) {
+                    renderRealtimeUI(data.currentWeather);
+                    updateBackground(data.currentWeather.conditionCode);
+                    renderForecastUI(data.forecastDaily);
+                } else {
+                    throw new Error("Invalid WeatherKit data format");
+                }
             } catch (error) {
-                console.error("API 返回错误详细信息:", error);
-                document.getElementById('weather-desc').innerText = "服务暂不可用: " + error.message;
+                console.error("获取天气数据失败:", error);
+                document.getElementById('weather-desc').innerText = "服务暂不可用";
                 renderMockForecastUI();
             }
         }
@@ -927,10 +665,12 @@
         // 渲染实时天气 UI
         function renderRealtimeUI(currentWeather) {
             document.getElementById('temp-val').innerText = Math.round(currentWeather.temperature);
-            document.getElementById('weather-desc').innerText = weatherkitConditionMap[currentWeather.conditionCode] || currentWeather.conditionCode;
+            document.getElementById('weather-desc').innerText = weatherKitMap[currentWeather.conditionCode] || "未知";
             
-            document.getElementById('idx-comfort').innerText = Math.round(currentWeather.temperatureApparent) + "°";
-            document.getElementById('idx-uv').innerText = currentWeather.uvIndex;
+            // 生活指数 (体感温度替代舒适度描述)
+            const apparentTemp = Math.round(currentWeather.temperatureApparent);
+            document.getElementById('idx-comfort').innerText = `体感 ${apparentTemp}°`;
+            document.getElementById('idx-uv').innerText = currentWeather.uvIndex || "--";
             document.getElementById('idx-humidity').innerText = Math.round(currentWeather.humidity * 100) + "%";
             document.getElementById('idx-wind').innerText = Math.round(currentWeather.windSpeed) + " km/h";
         }
@@ -946,21 +686,16 @@
             for (let i = 0; i < 3; i++) {
                 if (!days[i]) break;
                 
-                const day = days[i];
-                const condition = day.conditionCode;
-                const tempMin = Math.round(day.temperatureMin);
-                const tempMax = Math.round(day.temperatureMax);
-                
+                const condition = days[i].conditionCode;
+                const tempMin = Math.round(days[i].temperatureMin);
+                const tempMax = Math.round(days[i].temperatureMax);
                 // 取日期 MM-DD
-                const dateObj = new Date(day.forecastStart);
-                const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-                const dateNum = dateObj.getDate().toString().padStart(2, '0');
-                const dateStr = `${month}-${dateNum}`;
+                const dateStr = days[i].forecastStart.substring(5, 10); 
                 
                 const html = `
                     <div class="forecast-item">
                         <div class="forecast-date">${dayLabels[i]} <span style="font-size:0.8em; opacity:0.7; margin-left:5px;">${dateStr}</span></div>
-                        <div class="forecast-weather">${weatherkitConditionMap[condition] || condition}</div>
+                        <div class="forecast-weather">${weatherKitMap[condition] || "未知"}</div>
                         <div class="forecast-temp">${tempMin}° ~ ${tempMax}°</div>
                     </div>
                 `;
@@ -983,15 +718,10 @@
             const hour = new Date().getHours();
             const bgLayer = document.getElementById('bg-layer');
             const lightningLayer = document.getElementById('lightning-layer');
-            const flareLayer = document.getElementById('lens-flare-layer');
-            const fogLayer = document.getElementById('fog-layer');
             
             // 清空之前的特效
             bgLayer.innerHTML = ""; 
             lightningLayer.style.animation = "";
-            flareLayer.style.opacity = "0";
-            fogLayer.style.opacity = "0";
-            fogLayer.innerHTML = "";
             
             let bgGradient = "";
             let isNight = false;
@@ -999,163 +729,88 @@
             // 判断时间段 (中午/白天、傍晚、深夜)
             if (hour >= 6 && hour < 17) {
                 // 白天 (清晨到下午)
-                bgGradient = "linear-gradient(135deg, #2b5876 0%, #4e4376 100%)"; // 稍微深邃一点的蓝
-                if (conditionCode && conditionCode.toUpperCase().includes("CLEAR")) {
-                    bgGradient = "linear-gradient(135deg, #1cb5e0 0%, #000046 100%)"; // 晴天更透亮
-                }
+                bgGradient = "linear-gradient(135deg, #4A90E2, #87CEEB)";
             } else if (hour >= 17 && hour < 19) {
                 // 傍晚 (黄昏)
-                bgGradient = "linear-gradient(135deg, #ff4e50 0%, #f9d423 100%)";
+                bgGradient = "linear-gradient(135deg, #FF7E5F, #FEB47B)";
             } else {
                 // 深夜
-                bgGradient = "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)";
+                bgGradient = "linear-gradient(135deg, #0f2027, #203a43)";
                 isNight = true;
             }
             bgLayer.style.background = bgGradient;
             
-            const code = (conditionCode || "").toUpperCase();
+            // 归类天气现象
+            const isClear = ["Clear", "MostlyClear", "Hot"].includes(conditionCode);
+            const isCloudy = ["Cloudy", "MostlyCloudy", "PartlyCloudy", "Fog", "Haze", "Smoke", "Dust", "Breezy", "Windy"].includes(conditionCode);
+            const isRain = ["Drizzle", "HeavyRain", "Rain", "Showers", "MixedRainFall", "FreezingDrizzle", "FreezingRain"].includes(conditionCode);
+            const isSnow = ["Flurries", "HeavySnow", "Snow", "SnowShowers", "Blizzard", "BlowingSnow", "Sleet", "MixedRainAndSleet", "MixedRainAndSnow", "MixedSnowAndSleet", "ScatteredSnowShowers", "Hail"].includes(conditionCode);
+            const isThunder = ["IsolatedThunderstorms", "SevereThunderstorm", "Thunderstorm", "ScatteredThunderstorms", "Tornado", "TropicalStorm", "Hurricane"].includes(conditionCode);
             
             // 渲染具体天气特效
-            if (code.includes("CLEAR")) {
+            if (isClear) {
                 // 晴天
                 if (!isNight) {
-                    bgLayer.innerHTML += `
-                        <div class="sun-container">
-                            <div class="sun-ray"></div>
-                            <div class="sun"></div>
-                        </div>
-                    `;
-                    // 开启镜头光晕
-                    flareLayer.style.opacity = "1";
+                    bgLayer.innerHTML += `<div class="sun"></div>`;
                 } else {
-                    bgLayer.innerHTML += `
-                        <div class="moon-container">
-                            <div class="moon-halo"></div>
-                            <div class="moon"></div>
-                        </div>
-                    `;
-                    // 添加真实的星空
-                    for(let i = 0; i < 100; i++) {
+                    bgLayer.innerHTML += `<div class="moon"></div>`;
+                    // 添加星星
+                    for(let i = 0; i < 40; i++) {
                         const x = Math.random() * 100;
-                        const y = Math.random() * 100;
-                        const delay = Math.random() * 5;
-                        const size = Math.random() * 1.5 + 0.5;
-                        const opacity = Math.random() * 0.8 + 0.2;
-                        bgLayer.innerHTML += `<div class="star" style="top:${y}%; left:${x}%; width:${size}px; height:${size}px; opacity:${opacity}; animation: pulse ${Math.random()*3+2}s infinite alternate ${delay}s;"></div>`;
-                    }
-                    // 添加流星
-                    for(let i = 0; i < 4; i++) {
-                        const top = Math.random() * 40;
-                        const right = Math.random() * 50 - 20;
-                        const delay = Math.random() * 15;
-                        const duration = Math.random() * 1.5 + 2.5;
-                        bgLayer.innerHTML += `<div class="shooting-star" style="top:${top}%; right:${right}%; animation: shooting ${duration}s linear infinite ${delay}s;"></div>`;
+                        const y = Math.random() * 60; // 星星主要在上半部分
+                        const delay = Math.random() * 3;
+                        const size = Math.random() * 2 + 1;
+                        bgLayer.innerHTML += `<div class="star" style="top:${y}%; left:${x}%; width:${size}px; height:${size}px; animation: pulse 2s infinite alternate ${delay}s;"></div>`;
                     }
                 }
             } 
-            else if (code.includes("CLOUD")) {
+            else if (isCloudy || (!isClear && !isRain && !isSnow && !isThunder)) {
                 // 多云 / 阴天
-                const isDarkCloud = code === "CLOUDY" || code === "MOSTLYCLOUDY";
-                if (isDarkCloud && !isNight) {
-                    bgLayer.style.background = "linear-gradient(135deg, #4b5a6d 0%, #2c3e50 100%)";
+                // 如果是阴天，背景稍微变灰暗
+                if (conditionCode === "Cloudy" && !isNight) {
+                    bgLayer.style.background = "linear-gradient(135deg, #606c88, #3f4c6b)";
                 }
-                
-                // 渲染体积云
-                for(let i = 0; i < 12; i++) {
-                    const top = -10 + Math.random() * 50;
-                    const delay = Math.random() * -40;
-                    const duration = 30 + Math.random() * 40;
-                    const scale = 0.6 + Math.random() * 1.5;
-                    const opacity = isNight ? (Math.random() * 0.15 + 0.1) : (Math.random() * 0.4 + 0.5);
-                    const zIndex = Math.floor(Math.random() * 10);
-                    const cloudClass = isDarkCloud ? "cloud dark-cloud" : "cloud";
-                    
-                    bgLayer.innerHTML += `
-                        <div class="cloud-group" style="top:${top}%; left:-40%; z-index:${zIndex}; animation: float ${duration}s linear infinite ${delay}s;">
-                            <div class="${cloudClass}" style="width:200px; height:70px; opacity:${opacity}; transform:scale(${scale});"></div>
-                        </div>
-                    `;
-                }
-                
-                // 如果只是部分多云，还能隐约看到太阳或月亮
-                if (code === "PARTLYCLOUDY") {
-                    if (!isNight) {
-                        bgLayer.innerHTML += `<div class="sun-container" style="opacity: 0.5; z-index: -1; transform: scale(0.8);"><div class="sun"></div></div>`;
-                    } else {
-                        bgLayer.innerHTML += `<div class="moon-container" style="opacity: 0.5; z-index: -1; transform: scale(0.8);"><div class="moon"></div></div>`;
-                    }
-                }
-            }
-            
-            // 雾、霾、沙尘
-            if (code === "FOG" || code === "HAZE" || code === "SMOKE" || code === "DUST") {
-                fogLayer.style.opacity = "1";
-                if (!isNight) {
-                    bgLayer.style.background = "linear-gradient(to bottom, #bdc3c7, #2c3e50)";
-                }
-                
-                // 漂浮的颗粒
-                for(let i = 0; i < 15; i++) {
-                    const top = Math.random() * 100;
-                    const left = Math.random() * 100;
-                    const size = Math.random() * 200 + 100;
+                for(let i = 0; i < 6; i++) {
+                    const top = 5 + Math.random() * 30;
                     const delay = Math.random() * -20;
-                    fogLayer.innerHTML += `<div class="haze-particle" style="top:${top}%; left:${left}%; width:${size}px; height:${size}px; animation-delay:${delay}s;"></div>`;
+                    const duration = 20 + Math.random() * 15;
+                    const scale = 0.6 + Math.random() * 0.8;
+                    const opacity = isNight ? 0.2 : 0.6;
+                    bgLayer.innerHTML += `
+                        <div class="cloud" style="top:${top}%; left:-30%; width:150px; height:50px; background:rgba(255,255,255,${opacity}); transform:scale(${scale}); animation: float ${duration}s linear infinite ${delay}s;"></div>
+                    `;
                 }
             }
             
-            if (code.includes("RAIN") || code.includes("SHOWERS") || code.includes("DRIZZLE") || code.includes("THUNDERSTORM") || code.includes("HAIL")) {
-                // 雨天
+            if (isRain || isThunder) {
+                // 雨天 (涵盖所有雨)
                 if (!isNight) {
-                    bgLayer.style.background = "linear-gradient(135deg, #232526 0%, #414345 100%)";
+                    bgLayer.style.background = "linear-gradient(135deg, #4b6cb7, #182848)";
                 }
-                
-                // 乌云顶层
-                for(let i = 0; i < 8; i++) {
-                    bgLayer.innerHTML += `
-                        <div class="cloud-group" style="top:${-10 + Math.random()*20}%; left:-40%; animation: float ${30+Math.random()*20}s linear infinite ${Math.random()*-30}s;">
-                            <div class="cloud dark-cloud" style="width:250px; height:80px; opacity:0.8; transform:scale(${1+Math.random()});"></div>
-                        </div>
-                    `;
-                }
-
-                const rainIntensity = code.includes("HEAVY") || code.includes("THUNDERSTORM") ? 200 : 100;
-                for(let i = 0; i < rainIntensity; i++) {
-                    const left = Math.random() * 120 - 10;
+                // 雨滴
+                for(let i = 0; i < 80; i++) {
+                    const left = Math.random() * 100;
                     const delay = Math.random() * 2;
-                    const duration = 0.4 + Math.random() * 0.3;
-                    const width = Math.random() * 1.5 + 1;
-                    const height = Math.random() * 25 + 15;
-                    const opacity = Math.random() * 0.4 + 0.3;
+                    const duration = 0.4 + Math.random() * 0.4;
                     bgLayer.innerHTML += `
-                        <div class="raindrop" style="top:-50px; left:${left}%; width:${width}px; height:${height}px; opacity:${opacity}; animation: rainFall ${duration}s linear infinite ${delay}s;"></div>
-                        <div class="splash" style="left:${left}%; animation: splashAnim ${duration}s infinite ${delay + duration*0.9}s;"></div>
+                        <div style="position:absolute; top:-20px; left:${left}%; width:2px; height:20px; background:rgba(255,255,255,0.5); animation: fall ${duration}s linear infinite ${delay}s;"></div>
                     `;
                 }
-                // 雷雨闪电
-                if (code.includes("THUNDERSTORM")) {
-                    lightningLayer.style.animation = "flash 4s infinite";
-                    bgLayer.style.background = "linear-gradient(135deg, #141e30, #243b55)";
+                // 雷雨天气触发闪电
+                if (isThunder) {
+                    lightningLayer.style.animation = "flash 6s infinite";
                 }
             }
             
-            if (code.includes("SNOW") || code.includes("SLEET") || code.includes("BLIZZARD") || code.includes("FLURRIES")) {
+            if (isSnow) {
                 // 雪天
-                if (!isNight) {
-                    bgLayer.style.background = "linear-gradient(135deg, #74ebd5 0%, #9face6 100%)";
-                }
-                const snowIntensity = code.includes("HEAVY") || code.includes("BLIZZARD") ? 150 : 80;
-                for(let i = 0; i < snowIntensity; i++) {
-                    const left = Math.random() * 120 - 10;
-                    const delay = Math.random() * 10;
-                    const duration = 5 + Math.random() * 7;
-                    const size = 3 + Math.random() * 6;
-                    const opacity = Math.random() * 0.6 + 0.4;
-                    const blur = Math.random() * 1.5;
-                    const zIndex = Math.random() > 0.8 ? 5 : 1; // 偶尔有雪花飘在前面
-                    
+                for(let i = 0; i < 60; i++) {
+                    const left = Math.random() * 100;
+                    const delay = Math.random() * 5;
+                    const duration = 3 + Math.random() * 4;
+                    const size = 3 + Math.random() * 4;
                     bgLayer.innerHTML += `
-                        <div class="snowflake" style="top:-30px; left:${left}%; width:${size}px; height:${size}px; opacity:${opacity}; filter:blur(${blur}px); z-index:${zIndex}; animation: snowFall ${duration}s linear infinite ${delay}s, sway ${duration/2}s ease-in-out infinite alternate ${delay}s;"></div>
+                        <div style="position:absolute; top:-20px; left:${left}%; width:${size}px; height:${size}px; background:#ffffff; border-radius:50%; filter:blur(1px); animation: fall ${duration}s linear infinite ${delay}s;"></div>
                     `;
                 }
             }
