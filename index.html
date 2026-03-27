@@ -10,6 +10,17 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            /* iOS适配关键点：禁用系统默认的触摸长按菜单和文本选择，更像原生App */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            /* iOS适配关键点：移除点击高亮背景色 */
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 允许输入框可以选择文本 */
+        input, textarea {
+            -webkit-user-select: auto;
+            user-select: auto;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -279,6 +290,39 @@
         }
 
         /* ================= Main UI Layout ================= */
+        /* iOS适配关键点：横屏拦截样式 */
+        #landscape-blocker {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #1a1a2e;
+            color: #ffffff;
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            text-align: center;
+            flex-direction: column;
+            gap: 20px;
+        }
+        @media screen and (orientation: landscape) {
+            #landscape-blocker {
+                display: flex;
+            }
+            #app, #bg-layer, #lens-flare-layer, #fog-layer, #lightning-layer {
+                display: none !important;
+            }
+        }
+
+        /* iOS适配关键点：原生点击回弹动画 */
+        .ios-bounce {
+            transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.2s;
+        }
+        .ios-bounce:active {
+            transform: scale(0.92) !important; /* 轻微缩小 */
+            opacity: 0.8;
+        }
+
         #app {
             position: relative;
             z-index: 10;
@@ -287,7 +331,8 @@
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
-            padding: 40px 20px;
+            /* iOS适配关键点：利用 env() 函数避开刘海屏和底部黑条 (Home Indicator) */
+            padding: calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 20px) 20px;
             background: rgba(0, 0, 0, 0.15);
             backdrop-filter: blur(3px); /* 轻微模糊增强玻璃质感 */
         }
@@ -295,8 +340,9 @@
         /* 右上角入口 */
         .future-btn {
             position: absolute;
-            top: 30px;
-            right: 30px;
+            /* iOS适配关键点：顶部按钮适配刘海屏高度 */
+            top: calc(env(safe-area-inset-top) + 20px);
+            right: 20px;
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.4);
             padding: 10px 20px;
@@ -305,12 +351,7 @@
             cursor: pointer;
             backdrop-filter: blur(10px);
             font-size: 1rem;
-            transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-        .future-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
         }
 
         /* 天气信息展示区 */
@@ -323,8 +364,9 @@
         /* 左上角定位 */
         .location {
             position: absolute;
-            top: 30px;
-            left: 30px;
+            /* iOS适配关键点：左上角定位适配刘海屏高度 */
+            top: calc(env(safe-area-inset-top) + 20px);
+            left: 20px;
             font-size: 1.2rem;
             font-weight: 300;
             display: flex;
@@ -424,7 +466,8 @@
             border: none;
             padding: 10px 0;
             color: #ffffff;
-            font-size: 1rem;
+            /* iOS适配关键点：输入框字体至少16px，防止在 iOS Safari 点击时自动放大页面 */
+            font-size: 16px;
             outline: none;
         }
         .input-group input::placeholder {
@@ -440,15 +483,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: transform 0.3s, background 0.3s;
             margin-left: 10px;
             flex-shrink: 0;
             position: relative;
         }
-        .submit-btn:hover {
-            transform: scale(1.05);
-            background: #f0f0f0;
-        }
+        /* iOS端使用 ios-bounce 处理点击效果 */
         .submit-btn svg {
             width: 20px;
             height: 20px;
@@ -503,10 +542,6 @@
             font-size: 1.8rem;
             cursor: pointer;
             opacity: 0.7;
-            transition: opacity 0.3s;
-        }
-        .close-btn:hover {
-            opacity: 1;
         }
         .modal-title {
             font-size: 1.4rem;
@@ -626,23 +661,32 @@
                 margin-bottom: 5px;
             }
             .future-btn {
-                top: 20px;
-                right: 20px;
                 font-size: 0.9rem;
                 padding: 8px 16px;
             }
             .location {
-                top: 20px;
-                left: 20px;
                 font-size: 1rem;
                 padding: 6px 12px;
             }
-            #app { padding: 20px; }
+            #app { 
+                padding-top: calc(env(safe-area-inset-top) + 20px); 
+                padding-bottom: calc(env(safe-area-inset-bottom) + 20px);
+            }
             .weather-info { margin-top: 10vh; }
         }
     </style>
 </head>
-<body>
+<!-- iOS适配关键点：ontouchstart="" 激活 iOS Safari 的 :active 伪类响应 -->
+<body ontouchstart="">
+    <!-- iOS适配关键点：横屏拦截提示 -->
+    <div id="landscape-blocker">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2" transform="rotate(90 12 12)"></rect>
+            <path d="M12 18h.01"></path>
+        </svg>
+        <div>为了获得最佳体验，请竖屏使用</div>
+    </div>
+
     <!-- 动态背景层 -->
     <div id="bg-layer"></div>
     
@@ -662,7 +706,8 @@
 
     <!-- 主体内容 -->
     <div id="app">
-        <button class="future-btn" onclick="openModal()">未来天气</button>
+        <!-- iOS适配关键点：增加 ios-bounce 类，实现原生点击回弹效果 -->
+        <button class="future-btn ios-bounce" onclick="openModal()">未来天气</button>
         
         <div class="location">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -704,7 +749,8 @@
             <div class="mind-title">今日心事</div>
             <div class="input-group">
                 <input type="text" id="mind-input" placeholder="把心事说给树洞，安全不留痕" autocomplete="off">
-                <button class="submit-btn" onclick="submitMind()" aria-label="发送">
+                <!-- iOS适配关键点：增加 ios-bounce 类 -->
+                <button class="submit-btn ios-bounce" onclick="submitMind()" aria-label="发送">
                     <svg id="plane-icon" viewBox="0 0 24 24">
                         <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
                     </svg>
@@ -718,7 +764,8 @@
     <!-- 未来天气弹窗 -->
     <div class="modal" id="forecast-modal">
         <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <!-- iOS适配关键点：增加 ios-bounce 类 -->
+            <span class="close-btn ios-bounce" onclick="closeModal()">&times;</span>
             <div class="modal-title">未来三天天气</div>
             <div id="forecast-list">
                 <!-- 预报数据将通过 JS 动态注入 -->
@@ -876,7 +923,12 @@
                 console.log("Starting to fetch weather data for", lat, lon);
                 
                 // 请求本地 Node.js 服务器
-                const url = `http://localhost:8000/api/weather?lat=${lat}&lon=${lon}`;
+                // iOS适配关键点：在手机端通过局域网IP访问时，需要使用当前页面的 host 而不是写死 localhost
+                const host = window.location.hostname;
+                const port = window.location.port ? `:${window.location.port}` : '';
+                // 如果是直接打开的 file://，可能没有服务器，这里做个兼容
+                const baseUrl = window.location.protocol === 'file:' ? 'http://localhost:8000' : `${window.location.protocol}//${host}${port}`;
+                const url = `${baseUrl}/api/weather?lat=${lat}&lon=${lon}`;
                 console.log("Requesting local server API:", url);
                 
                 const response = await fetch(url);
