@@ -888,10 +888,14 @@
                     // 兼容通过 Live Server 等本地工具启动前端页面的情况
                     baseUrl = 'http://localhost:8000';
                 } else {
-                    baseUrl = `${protocol}//${host}${port ? ':' + port : ''}`;
+                    // 线上环境
+                    // 如果前端和后端部署在同一个域名和端口，则不需要加 host 和 port
+                    // 此处修改为相对路径请求，如果前端和后端是同一个服务部署的
+                    baseUrl = '';
                 }
                 
-                const url = `${baseUrl}/api/weather?lat=${lat}&lon=${lon}`;
+                // 为了更好的兼容性，如果是开发环境或者跨域情况，使用完整路径；否则使用相对路径
+                const url = baseUrl ? `${baseUrl}/api/weather?lat=${lat}&lon=${lon}` : `/api/weather?lat=${lat}&lon=${lon}`;
                 
                 console.log("Requesting server API:", url);
                 
