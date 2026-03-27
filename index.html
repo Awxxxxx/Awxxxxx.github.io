@@ -876,13 +876,21 @@
                 console.log("Starting to fetch weather data for", lat, lon);
                 
                 // 请求本地 Node.js 服务器
-                // 动态获取当前访问的域名和协议，保证手机远程访问时也能正确请求到代理接口
+                // 动态获取当前访问的域名和协议
                 const host = window.location.hostname;
-                const port = window.location.port ? `:${window.location.port}` : '';
+                const port = window.location.port;
                 const protocol = window.location.protocol;
                 
-                // 如果是直接双击打开的 file:// 协议，则回退到 localhost:8000
-                const baseUrl = protocol === 'file:' ? 'http://localhost:8000' : `${protocol}//${host}${port}`;
+                let baseUrl = '';
+                if (protocol === 'file:') {
+                    baseUrl = 'http://localhost:8000';
+                } else if ((host === 'localhost' || host === '127.0.0.1') && port !== '8000') {
+                    // 兼容通过 Live Server 等本地工具启动前端页面的情况
+                    baseUrl = 'http://localhost:8000';
+                } else {
+                    baseUrl = `${protocol}//${host}${port ? ':' + port : ''}`;
+                }
+                
                 const url = `${baseUrl}/api/weather?lat=${lat}&lon=${lon}`;
                 
                 console.log("Requesting server API:", url);
@@ -908,7 +916,7 @@
                 
             } catch (error) {
                 console.error("API 返回错误详细信息:", error);
-                document.getElementById('weather-desc').innerText = "服务暂不可用";
+                document.getElementById('weather-desc').innerText = "服务暂不可用: " + error.message;
                 renderMockForecastUI();
             }
         }
