@@ -870,89 +870,27 @@
             }
         }
 
-        // 生成 Apple WeatherKit JWT Token
-        async function generateWeatherKitJWT() {
-            const teamId = "WR7885F6JL";
-            const serviceId = "com.Secretbox.weatherkit-client";
-            const keyId = "F8N9S83ZPP";
-            const privateKeyPEM = `-----BEGIN PRIVATE KEY-----
-MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgT1F+xvciRZcXb5fA5zGVptBXctJG8uOGti+Xi/5KY6KgCgYIKoZIzj0DAQehRANCAAQ9I8YAAu1z5LFaAc2DgMsxCqoAuI4oIqKKU+0Vxm4pILecfMb/suvfHw7xdtzI41Qhl2TGTHhvSwx5e8cfhd8l
------END PRIVATE KEY-----`;
-
-            const header = { alg: "ES256", kid: keyId, id: `${teamId}.${serviceId}` };
-            const payload = {
-                iss: teamId,
-                sub: serviceId,
-                iat: Math.floor(Date.now() / 1000),
-                exp: Math.floor(Date.now() / 1000) + 3600
-            };
-
-            const base64UrlEncode = (str) => {
-                const utf8Bytes = new TextEncoder().encode(str);
-                let binaryString = '';
-                for (let i = 0; i < utf8Bytes.length; i++) {
-                    binaryString += String.fromCharCode(utf8Bytes[i]);
-                }
-                return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            };
-
-            const arrayBufferToBase64Url = (buffer) => {
-                const bytes = new Uint8Array(buffer);
-                let binaryString = '';
-                for (let i = 0; i < bytes.length; i++) {
-                    binaryString += String.fromCharCode(bytes[i]);
-                }
-                return btoa(binaryString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            };
-
-            const headerEncoded = base64UrlEncode(JSON.stringify(header));
-            const payloadEncoded = base64UrlEncode(JSON.stringify(payload));
-            const dataToSign = `${headerEncoded}.${payloadEncoded}`;
-
-            const pemContents = privateKeyPEM.replace(/-----BEGIN PRIVATE KEY-----/g, "")
-                                             .replace(/-----END PRIVATE KEY-----/g, "")
-                                             .replace(/\s/g, "");
-            
-            const binaryDerString = atob(pemContents);
-            const binaryDer = new Uint8Array(binaryDerString.length);
-            for (let i = 0; i < binaryDerString.length; i++) {
-                binaryDer[i] = binaryDerString.charCodeAt(i);
-            }
-
-            const key = await crypto.subtle.importKey(
-                "pkcs8",
-                binaryDer.buffer,
-                { name: "ECDSA", namedCurve: "P-256" },
-                false,
-                ["sign"]
-            );
-
-            const signature = await crypto.subtle.sign(
-                { name: "ECDSA", hash: {name: "SHA-256"} },
-                key,
-                new TextEncoder().encode(dataToSign)
-            );
-
-            return `${dataToSign}.${arrayBufferToBase64Url(signature)}`;
-        }
-
-        // 3. 调用 Apple WeatherKit API 获取数据
+        // 3. 请求本地代理服务器获取天气数据
         async function getWeatherData(lat, lon) {
             try {
-                const token = await generateWeatherKitJWT();
-                const url = `https://weatherkit.apple.com/api/v1/weather/zh-CN/${lat}/${lon}?dataSets=currentWeather,forecastDaily`;
+                console.log("Starting to fetch weather data for", lat, lon);
                 
-                const response = await fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+                // 请求本地 Node.js 服务器
+                const url = `http://localhost:8000/api/weather?lat=${lat}&lon=${lon}`;
+                console.log("Requesting local server API:", url);
+                
+                const response = await fetch(url);
+                
+                console.log("Server API Response Status:", response.status);
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("Server API Error Response Body:", errorText);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                console.log("Weather Data received successfully", data);
                 
                 // 渲染实时数据
                 renderRealtimeUI(data.currentWeather);
@@ -961,7 +899,7 @@ MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgT1F+xvciRZcXb5fA5zGVptBXctJG8uOG
                 renderForecastUI(data.forecastDaily);
                 
             } catch (error) {
-                console.error("API 返回错误:", error);
+                console.error("API 返回错误详细信息:", error);
                 document.getElementById('weather-desc').innerText = "服务暂不可用";
                 renderMockForecastUI();
             }
