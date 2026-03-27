@@ -71,7 +71,8 @@ app.get('/api/weather', async (req, res) => {
 app.use(express.static(__dirname));
 
 const PORT = 8000;
-app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
+// 允许所有 IP 访问（重要：否则手机无法通过局域网 IP 连接 Node 服务器）
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running at http://0.0.0.0:${PORT}`);
     console.log(`Test API at: http://localhost:${PORT}/api/weather?lat=39.9042&lon=116.4074`);
 });
