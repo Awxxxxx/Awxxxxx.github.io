@@ -33,7 +33,6 @@ function generateWeatherKitJWT() {
     return token;
 }
 
-// 修改为支持 CORS 预检请求并返回正确的头信息
 app.get('/api/weather', async (req, res) => {
     try {
         const { lat, lon } = req.query;
@@ -44,6 +43,7 @@ app.get('/api/weather', async (req, res) => {
         console.log(`[WeatherKit] Requesting weather for ${lat}, ${lon}`);
         const token = generateWeatherKitJWT();
         
+        // 调用 WeatherKit REST API，获取当前天气和未来每日预报
         const url = `https://weatherkit.apple.com/api/v1/weather/zh-CN/${lat}/${lon}?dataSets=currentWeather,forecastDaily`;
         
         const response = await fetch(url, {
@@ -68,12 +68,10 @@ app.get('/api/weather', async (req, res) => {
     }
 });
 
-// 托管静态文件 (提供 index.html 的访问)
+// 托管静态文件 (提供 old.html 的访问)
 app.use(express.static(__dirname));
 
-// 部署在 Vercel、Heroku 等云平台时，通常使用 process.env.PORT
 const PORT = process.env.PORT || 8000;
-// 允许所有 IP 访问
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running at port ${PORT}`);
 });
