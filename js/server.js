@@ -3,6 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 
 const app = express();
+// 允许跨域请求
 app.use(cors());
 
 // Apple WeatherKit 配置
@@ -32,6 +33,7 @@ function generateWeatherKitJWT() {
     return token;
 }
 
+// 修改为支持 CORS 预检请求并返回正确的头信息
 app.get('/api/weather', async (req, res) => {
     try {
         const { lat, lon } = req.query;
@@ -44,7 +46,6 @@ app.get('/api/weather', async (req, res) => {
         
         const url = `https://weatherkit.apple.com/api/v1/weather/zh-CN/${lat}/${lon}?dataSets=currentWeather,forecastDaily`;
         
-        // Node.js 18+ 原生支持 fetch
         const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -70,9 +71,9 @@ app.get('/api/weather', async (req, res) => {
 // 托管静态文件 (提供 index.html 的访问)
 app.use(express.static(__dirname));
 
-const PORT = 8000;
-// 允许所有 IP 访问（重要：否则手机无法通过局域网 IP 连接 Node 服务器）
+// 部署在 Vercel、Heroku 等云平台时，通常使用 process.env.PORT
+const PORT = process.env.PORT || 8000;
+// 允许所有 IP 访问
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running at http://0.0.0.0:${PORT}`);
-    console.log(`Test API at: http://localhost:${PORT}/api/weather?lat=39.9042&lon=116.4074`);
+    console.log(`Server is running at port ${PORT}`);
 });
