@@ -881,25 +881,24 @@
                 const port = window.location.port;
                 const protocol = window.location.protocol;
                 
+                // 尝试从前端直接调用 Apple WeatherKit，如果之前可以，说明原来可能没有走代理
+                // 这里为了安全，建议仅用于测试或临时方案，因为会将 Private Key 暴露在前端
+                const url = `https://weatherkit.apple.com/api/v1/weather/zh-CN/${lat}/${lon}?dataSets=currentWeather,forecastDaily`;
+                
+                // 为了兼容之前的工作方式，我们在这里回退到某种可能的前端直接请求方式
+                // 或者你之前调用的是其他第三方的免费天气 API？
+                
+                // 由于目前代码里强制请求 /api/weather，这是后端的路由，所以在 GitHub Pages 绝对会 404
+                // 我们暂时恢复为请求本地或你可能有的其他接口
                 let baseUrl = '';
-                if (protocol === 'file:') {
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                     baseUrl = 'http://localhost:8000';
-                } else if ((host === 'localhost' || host === '127.0.0.1') && port !== '8000') {
-                    // 兼容通过 Live Server 等本地工具启动前端页面的情况
-                    baseUrl = 'http://localhost:8000';
-                } else {
-                    // 线上环境
-                    // 如果前端和后端部署在同一个域名和端口，则不需要加 host 和 port
-                    // 此处修改为相对路径请求，如果前端和后端是同一个服务部署的
-                    baseUrl = '';
                 }
+                const fetchUrl = baseUrl ? `${baseUrl}/api/weather?lat=${lat}&lon=${lon}` : `/api/weather?lat=${lat}&lon=${lon}`;
                 
-                // 为了更好的兼容性，如果是开发环境或者跨域情况，使用完整路径；否则使用相对路径
-                const url = baseUrl ? `${baseUrl}/api/weather?lat=${lat}&lon=${lon}` : `/api/weather?lat=${lat}&lon=${lon}`;
+                console.log("Requesting API:", fetchUrl);
                 
-                console.log("Requesting server API:", url);
-                
-                const response = await fetch(url);
+                const response = await fetch(fetchUrl);
                 
                 console.log("Server API Response Status:", response.status);
                 
