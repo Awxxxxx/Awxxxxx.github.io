@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>树洞天气 - 天气看得见，心事说得出</title>
+  <style>
+    /* ============================================================
+       CSS RESET & BASE
+       ============================================================ */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+    :root {
+      --bg-top: #4facfe;
+      --bg-bottom: #00f2fe;
+      --glass-bg: rgba(255, 255, 255, 0.15);
+      --glass-border: rgba(255, 255, 255, 0.25);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.85);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    /* ============================================================
+       DYNAMIC BACKGROUND
+       ============================================================ */
+    #bg-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+    }
+
+    .bg-gradient {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(170deg, var(--bg-top), var(--bg-bottom));
+      z-index: -1;
+      transition: background 2s ease;
+    }
+
+    /* ============================================================
+       LAYOUT — Vertically centered, full viewport
+       ============================================================ */
+    .app-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ============================================================
+       TOP BAR — Location pill (left) + Forecast pill (right)
+       ============================================================ */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      width: 100%;
+    }
+
+    .location-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      font-size: 0.9rem;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .location-icon {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
+
+    .forecast-btn {
+      padding: 10px 22px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    .forecast-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-1px);
+    }
+
+    /* ============================================================
+       MAIN CONTENT — Temperature + Condition + Indices
+       ============================================================ */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 2rem;
+      margin-top: -2rem;
+    }
+
+    /* Temperature — very large, clean, no card */
+    .temp-display {
+      font-size: 10rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -6px;
+      text-shadow: 0 4px 40px rgba(0, 0, 0, 0.12);
+      text-align: center;
+      animation: fadeInUp 1s ease;
+    }
+
+    .temp-display .unit {
+      font-size: 2rem;
+      font-weight: 300;
+      vertical-align: super;
+      letter-spacing: 0;
+      margin-left: -4px;
+    }
+
+    .condition-text {
+      font-size: 1.6rem;
+      font-weight: 400;
+      margin-top: 0.3rem;
+      opacity: 0.95;
+      text-align: center;
+      letter-spacing: 4px;
+      animation: fadeInUp 1s ease 0.1s both;
+    }
+
+    /* ============================================================
+       INDICES BAR — Single dark glassmorphism strip
+       ============================================================ */
+    .indices-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      width: 100%;
+      max-width: 700px;
+      margin-top: 2.5rem;
+      padding: 1.4rem 1rem;
+      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      animation: fadeInUp 1s ease 0.2s both;
+    }
+
+    .index-item {
+      text-align: center;
+      position: relative;
+    }
+
+    /* Subtle divider between items */
+    .index-item + .index-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15%;
+      height: 70%;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .index-label {
+      font-size: 0.78rem;
+      opacity: 0.55;
+      margin-bottom: 0.45rem;
+      font-weight: 400;
+    }
+
+    .index-value {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       BOTTOM SECTION — Thoughts + Footer
+       ============================================================ */
+    .bottom-section {
+      padding: 2.5rem 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .thoughts-title {
+      font-size: 1rem;
+      font-weight: 400;
+      margin-bottom: 1rem;
+      opacity: 0.85;
+      letter-spacing: 2px;
+      text-align: center;
+    }
+
+    /* Input wrapper: holds input + circular send button together */
+    .thoughts-input-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .thoughts-input {
+      width: 100%;
+      padding: 16px 60px 16px 24px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .thoughts-input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .thoughts-input:focus {
+      border-color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Circular send button embedded in the input */
+    .submit-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 42px;
+      height: 42px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .submit-btn:hover {
+      background: #ffffff;
+      transform: translateY(-50%) scale(1.05);
+    }
+
+    .submit-btn:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+
+    /* Arrow icon inside button */
+    .submit-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: #333;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      padding: 1.5rem;
+      font-size: 0.75rem;
+      opacity: 0.4;
+      text-align: center;
+      letter-spacing: 1px;
+      font-style: italic;
+    }
+
+    /* ============================================================
+       PAPER PLANE ANIMATION
+       ============================================================ */
+    .paper-plane {
+      position: fixed;
+      z-index: 999;
+      pointer-events: none;
+      font-size: 2rem;
+      opacity: 0;
+    }
+
+    .paper-plane.fly {
+      animation: flyAway 1.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+
+    @keyframes flyAway {
+      0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+      30% { opacity: 1; transform: translate(60px, -80px) rotate(-15deg) scale(1.2); }
+      100% { opacity: 0; transform: translate(400px, -500px) rotate(-45deg) scale(0.3); }
+    }
+
+    /* ============================================================
+       TOAST NOTIFICATION
+       ============================================================ */
+    .toast {
+      position: fixed;
+      top: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      padding: 14px 28px;
+      border-radius: 50px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 0.95rem;
+      z-index: 1000;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ============================================================
+       FORECAST PANEL (Sidebar)
+       ============================================================ */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .forecast-panel {
+      position: fixed;
+      top: 0; right: 0;
+      width: 380px;
+      max-width: 90vw;
+      height: 100%;
+      background: rgba(20, 25, 50, 0.7);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      padding: 2rem;
+      overflow-y: auto;
+    }
+
+    .forecast-panel.open {
+      transform: translateX(0);
+    }
+
+    .forecast-panel h2 {
+      font-size: 1.3rem;
+      font-weight: 500;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .close-btn {
+      width: 36px; height: 36px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .forecast-day {
+      padding: 1.2rem;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.06);
+      margin-bottom: 1rem;
+      transition: background 0.3s;
+    }
+
+    .forecast-day:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .forecast-day-name {
+      font-size: 0.85rem;
+      opacity: 0.6;
+      margin-bottom: 0.5rem;
+    }
+
+    .forecast-day-main {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .forecast-condition {
+      font-size: 1rem;
+    }
+
+    .forecast-temps {
+      text-align: right;
+    }
+
+    .forecast-high {
+      font-size: 1.3rem;
+      font-weight: 600;
+    }
+
+    .forecast-low {
+      font-size: 0.85rem;
+      opacity: 0.5;
+    }
+
+    /* ============================================================
+       LOADING STATE
+       ============================================================ */
+    .loading-text {
+      font-size: 1rem;
+      opacity: 0.7;
+      animation: pulse 1.5s ease infinite;
+      text-align: center;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.9; }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       RESPONSIVE
+       ============================================================ */
+    @media (max-width: 600px) {
+      .top-bar {
+        padding: 1rem;
+      }
+
+      .location-badge,
+      .forecast-btn {
+        padding: 8px 16px;
+        font-size: 0.8rem;
+      }
+
+      .temp-display {
+        font-size: 6rem;
+        letter-spacing: -3px;
+      }
+
+      .temp-display .unit {
+        font-size: 1.5rem;
+      }
+
+      .condition-text {
+        font-size: 1.2rem;
+        letter-spacing: 2px;
+      }
+
+      .indices-bar {
+        grid-template-columns: repeat(4, 1fr);
+        padding: 1.2rem 0.5rem;
+        margin-top: 2rem;
+      }
+
+      .index-label {
+        font-size: 0.7rem;
+      }
+
+      .index-value {
+        font-size: 0.9rem;
+      }
+
+      .main-content {
+        padding: 0 1rem;
+      }
+
+      .bottom-section {
+        padding: 2rem 1rem 1rem;
+      }
+
+      .forecast-panel {
+        width: 100%;
+        max-width: 100%;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .temp-display {
+        font-size: 4.5rem;
+      }
+
+      .indices-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      .index-item + .index-item::before {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background gradient layer -->
+  <div class="bg-gradient" id="bgGradient"></div>
+  <!-- Canvas for weather particle effects -->
+  <canvas id="bg-canvas"></canvas>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Forecast sidebar overlay -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+  <div class="forecast-panel" id="forecastPanel">
+    <h2>
+      未来天气
+      <button class="close-btn" id="closeForecast">&times;</button>
+    </h2>
+    <div id="forecastContent">
+      <p class="loading-text">加载中...</p>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app-container">
+
+    <!-- Top bar: location badge + forecast button -->
+    <div class="top-bar">
+      <div class="location-badge" id="locationBadge">
+        <span class="location-icon">&#8857;</span>
+        <span id="locationText">定位中...</span>
+      </div>
+      <button class="forecast-btn" id="openForecast">未来天气</button>
+    </div>
+
+    <!-- Main weather content — vertically centered -->
+    <div class="main-content">
+      <div id="weatherMain">
+        <p class="loading-text">正在获取位置与天气...</p>
+      </div>
+    </div>
+
+    <!-- Bottom: Thoughts + Footer -->
+    <div class="bottom-section">
+      <div class="thoughts-title">今日心事</div>
+      <div class="thoughts-input-wrapper">
+        <input
+          type="text"
+          class="thoughts-input"
+          id="thoughtInput"
+          placeholder="把心事说给树洞，安全不留痕"
+          maxlength="200"
+        />
+        <button class="submit-btn" id="submitThought">
+          <!-- Arrow/send icon -->
+          <svg viewBox="0 0 24 24">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
+      <div class="footer"><em>Designed and developed by XU PENGYUAN</em></div>
+    </div>
+  </div>
+
+  <script>
+    /* ================================================================
+       CONFIGURATION
+       ================================================================ */
+    const API_BASE = 'http://localhost:3000';
+
+    /* ================================================================
+       WEATHER CONDITION CODE → Chinese Translation Map
+       ================================================================ */
+    const conditionMap = {
+      'Clear': '晴',
+      'MostlyClear': '大部晴朗',
+      'PartlyCloudy': '多云',
+      'MostlyCloudy': '大部多云',
+      'Cloudy': '阴',
+      'Overcast': '阴天',
+      'Haze': '霾',
+      'Foggy': '雾',
+      'Smoky': '烟雾',
+      'Drizzle': '毛毛雨',
+      'Rain': '雨',
+      'HeavyRain': '大雨',
+      'SunShowers': '太阳雨',
+      'ScatteredThunderstorms': '局部雷暴',
+      'Thunderstorms': '雷暴',
+      'IsolatedThunderstorms': '零星雷暴',
+      'StrongStorms': '强风暴',
+      'SevereThunderstorm': '强雷暴',
+      'Snow': '雪',
+      'HeavySnow': '大雪',
+      'Flurries': '小雪',
+      'Sleet': '雨夹雪',
+      'FreezingRain': '冻雨',
+      'FreezingDrizzle': '冻毛毛雨',
+      'Blizzard': '暴风雪',
+      'BlowingSnow': '吹雪',
+      'Windy': '大风',
+      'Breezy': '微风',
+      'Hot': '炎热',
+      'Frigid': '严寒',
+      'Dust': '扬沙',
+      'BlowingDust': '沙尘暴',
+      'Tropical Storm': '热带风暴',
+      'Hurricane': '飓风',
+    };
+
+    function translateCondition(code) {
+      return conditionMap[code] || code;
+    }
+
+    /* ================================================================
+       COMFORT / UV LEVEL HELPERS
+       Translate raw values into descriptive Chinese text
+       ================================================================ */
+
+    /**
+     * Convert apparent temperature into a comfort description.
+     */
+    function getComfortLevel(apparentTemp) {
+      if (apparentTemp >= 35) return '酷热';
+      if (apparentTemp >= 30) return '闷热';
+      if (apparentTemp >= 25) return '温暖';
+      if (apparentTemp >= 18) return '舒适';
+      if (apparentTemp >= 10) return '微凉';
+      if (apparentTemp >= 0) return '寒冷';
+      return '极寒';
+    }
+
+    /**
+     * Convert UV index into a descriptive level.
+     */
+    function getUVLevel(uvIndex) {
+      if (uvIndex <= 2) return '弱';
+      if (uvIndex <= 5) return '中等';
+      if (uvIndex <= 7) return '强';
+      if (uvIndex <= 10) return '很强';
+      return '极强';
+    }
+
+    /* ================================================================
+       TIME OF DAY DETECTION (GMT+8)
+       ================================================================ */
+    function getTimeOfDay() {
+      const now = new Date();
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+      const gmt8 = new Date(utc + 8 * 3600000);
+      const hour = gmt8.getHours();
+
+      if (hour >= 5 && hour < 7) return 'dawn';
+      if (hour >= 7 && hour < 17) return 'day';
+      if (hour >= 17 && hour < 19) return 'dusk';
+      return 'night';
+    }
+
+    /* ================================================================
+       DYNAMIC PALETTE
+       ================================================================ */
+    const palettes = {
+      day: {
+        clear:  { top: '#5b8cbe', bottom: '#8fb8d0' },
+        cloudy: { top: '#4a5568', bottom: '#6b7d8e' },
+        rain:   { top: '#3d4f5f', bottom: '#2b3a42' },
+        snow:   { top: '#8a9bae', bottom: '#a0afc0' },
+        storm:  { top: '#1e2a35', bottom: '#2c3840' },
+      },
+      dawn: {
+        clear:  { top: '#8b6e7f', bottom: '#c4967a' },
+        cloudy: { top: '#6e5a6a', bottom: '#8a7565' },
+        rain:   { top: '#4a4550', bottom: '#5a5048' },
+        snow:   { top: '#8a8088', bottom: '#9a8a78' },
+        storm:  { top: '#3a3035', bottom: '#5a4a40' },
+      },
+      dusk: {
+        clear:  { top: '#6a4570', bottom: '#c07850' },
+        cloudy: { top: '#5a4060', bottom: '#7a5548' },
+        rain:   { top: '#3a3040', bottom: '#3e3545' },
+        snow:   { top: '#7a6a78', bottom: '#6a5060' },
+        storm:  { top: '#1e1528', bottom: '#352040' },
+      },
+      night: {
+        clear:  { top: '#0a0d18', bottom: '#121530' },
+        cloudy: { top: '#101820', bottom: '#1a2535' },
+        rain:   { top: '#0c1218', bottom: '#141c22' },
+        snow:   { top: '#1e2a35', bottom: '#283848' },
+        storm:  { top: '#08080d', bottom: '#121220' },
+      }
+    };
+
+    function getWeatherCategory(conditionCode) {
+      if (!conditionCode) return 'clear';
+      const c = conditionCode.toLowerCase();
+      if (c.includes('thunder') || c.includes('storm') || c.includes('hurricane')) return 'storm';
+      if (c.includes('snow') || c.includes('flurr') || c.includes('blizzard') || c.includes('sleet')) return 'snow';
+      if (c.includes('rain') || c.includes('drizzle') || c.includes('shower')) return 'rain';
+      if (c.includes('cloud') || c.includes('overcast') || c.includes('fog') || c.includes('haze') || c.includes('smok')) return 'cloudy';
+      return 'clear';
+    }
+
+    function applyPalette(conditionCode) {
+      const time = getTimeOfDay();
+      const category = getWeatherCategory(conditionCode);
+      const palette = palettes[time]?.[category] || palettes.day.clear;
+
+      document.documentElement.style.setProperty('--bg-top', palette.top);
+      document.documentElement.style.setProperty('--bg-bottom', palette.bottom);
+
+      if (time === 'day' && category === 'snow') {
+        document.documentElement.style.setProperty('--text-primary', '#2d3436');
+        document.documentElement.style.setProperty('--text-secondary', 'rgba(45,52,54,0.8)');
+      }
+
+      return { time, category };
+    }
+
+    /* ================================================================
+       CANVAS WEATHER ANIMATIONS
+       ================================================================ */
+    const canvas = document.getElementById('bg-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let animationId = null;
+    let currentAnimation = null;
+    let lightningTimer = 0;
+    let lightningFlash = 0;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* Splash ripple pool for rain hitting the ground */
+    let splashes = [];
+    /* Shooting star state for clear nights */
+    let shootingStar = null;
+    let shootingStarTimer = 0;
+    /* Fog/mist wave offset for cloudy weather */
+    let fogOffset = 0;
+
+    function initParticles(category, time) {
+      particles = [];
+      splashes = [];
+      shootingStar = null;
+      currentAnimation = { category, time };
+
+      if (category === 'rain' || category === 'storm') {
+        // Dense rain — multiple layers for depth
+        const count = category === 'storm' ? 500 : 250;
+        for (let i = 0; i < count; i++) {
+          const layer = Math.random(); // 0=far, 1=near
+          particles.push({
+            type: 'rain',
+            x: Math.random() * canvas.width * 1.5 - canvas.width * 0.25,
+            y: Math.random() * canvas.height,
+            len: 15 + layer * 25,
+            speed: 12 + layer * 14,
+            wind: category === 'storm' ? (4 + layer * 6) : (1 + layer * 2),
+            thickness: 0.8 + layer * 1.5,
+            opacity: 0.15 + layer * 0.45,
+            layer,
+          });
+        }
+      }
+
+      if (category === 'snow') {
+        // Layered snowflakes with depth
+        for (let i = 0; i < 200; i++) {
+          const layer = Math.random();
+          particles.push({
+            type: 'snow',
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: 1 + layer * 5,
+            speed: 0.3 + layer * 2,
+            wind: (Math.random() - 0.5) * 1.5,
+            wobbleAmp: 0.5 + Math.random() * 1.5,
+            wobbleSpeed: 0.01 + Math.random() * 0.02,
+            opacity: 0.2 + layer * 0.6,
+            layer,
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.02,
+          });
+        }
+      }
+
+      if (category === 'clear' && time === 'night') {
+        // Dense starfield with varied brightness
+        for (let i = 0; i < 300; i++) {
+          particles.push({
+            type: 'star',
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height * 0.85,
+            r: Math.random() * 2 + 0.3,
+            twinkleSpeed: Math.random() * 0.03 + 0.008,
+            twinkleOffset: Math.random() * Math.PI * 2,
+            hue: Math.random() > 0.8 ? (200 + Math.random() * 60) : (40 + Math.random() * 20),
+          });
+        }
+      }
+
+      if (category === 'clear' && (time === 'day' || time === 'dawn' || time === 'dusk')) {
+        // Sun + floating light motes
+        particles.push({ type: 'sun' });
+        for (let i = 0; i < 40; i++) {
+          particles.push({
+            type: 'mote',
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 3 + 1,
+            speedX: (Math.random() - 0.5) * 0.4,
+            speedY: -Math.random() * 0.3 - 0.1,
+            opacity: Math.random() * 0.3 + 0.05,
+            wobble: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      if (category === 'cloudy') {
+        // Multi-layered realistic clouds
+        for (let i = 0; i < 15; i++) {
+          const layer = Math.random();
+          particles.push({
+            type: 'cloud',
+            x: Math.random() * canvas.width * 1.5 - canvas.width * 0.25,
+            y: Math.random() * canvas.height * 0.65,
+            w: 200 + layer * 400,
+            h: 50 + layer * 80,
+            speed: 0.08 + (1 - layer) * 0.25,
+            opacity: 0.04 + layer * 0.12,
+            puffs: Math.floor(3 + Math.random() * 5), // number of sub-ellipses
+            layer,
+          });
+        }
+        // Add subtle floating mist particles
+        for (let i = 0; i < 30; i++) {
+          particles.push({
+            type: 'mist',
+            x: Math.random() * canvas.width,
+            y: canvas.height * 0.5 + Math.random() * canvas.height * 0.5,
+            r: 80 + Math.random() * 120,
+            speedX: (Math.random() - 0.5) * 0.3,
+            opacity: Math.random() * 0.06 + 0.02,
+          });
+        }
+      }
+
+      // Ambient floating particles for all weather types
+      for (let i = 0; i < 20; i++) {
+        particles.push({
+          type: 'ambient',
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 2 + 0.5,
+          speedX: (Math.random() - 0.5) * 0.2,
+          speedY: (Math.random() - 0.5) * 0.15,
+          opacity: Math.random() * 0.15 + 0.03,
+          pulse: Math.random() * Math.PI * 2,
+        });
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Sort particles by layer for depth (far particles drawn first)
+      const sorted = [...particles].sort((a, b) => (a.layer || 0) - (b.layer || 0));
+
+      for (const p of sorted) {
+        switch (p.type) {
+          case 'rain': drawRain(p); break;
+          case 'snow': drawSnow(p); break;
+          case 'star': drawStar(p); break;
+          case 'sun': drawSun(); break;
+          case 'mote': drawMote(p); break;
+          case 'cloud': drawCloud(p); break;
+          case 'mist': drawMist(p); break;
+          case 'ambient': drawAmbient(p); break;
+        }
+      }
+
+      // Draw rain splashes
+      drawSplashes();
+
+      // Storm lightning
+      if (currentAnimation?.category === 'storm') {
+        lightningTimer++;
+        if (lightningTimer > 80 + Math.random() * 120) {
+          lightningFlash = 6;
+          lightningTimer = 0;
+        }
+        if (lightningFlash > 0) {
+          ctx.fillStyle = `rgba(180, 190, 255, ${lightningFlash * 0.06})`;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (lightningFlash === 6) {
+            drawLightningBolt();
+            // Sometimes draw a second branch
+            if (Math.random() > 0.5) drawLightningBolt();
+          }
+          lightningFlash--;
+        }
+      }
+
+      // Shooting stars for clear night
+      if (currentAnimation?.category === 'clear' && currentAnimation?.time === 'night') {
+        shootingStarTimer++;
+        if (!shootingStar && shootingStarTimer > 200 + Math.random() * 400) {
+          shootingStar = {
+            x: Math.random() * canvas.width * 0.8,
+            y: Math.random() * canvas.height * 0.3,
+            vx: 8 + Math.random() * 6,
+            vy: 3 + Math.random() * 4,
+            life: 1,
+            trail: [],
+          };
+          shootingStarTimer = 0;
+        }
+        if (shootingStar) {
+          drawShootingStar();
+        }
+      }
+
+      // Fog waves for cloudy
+      if (currentAnimation?.category === 'cloudy') {
+        fogOffset += 0.003;
+        drawFogWaves();
+      }
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    /* --- Rain with splash effects --- */
+    function drawRain(p) {
+      const endX = p.x + p.wind * (p.len / p.speed);
+      const endY = p.y + p.len;
+
+      // Draw raindrop streak with gradient
+      const grad = ctx.createLinearGradient(p.x, p.y, endX, endY);
+      grad.addColorStop(0, `rgba(180, 210, 240, 0)`);
+      grad.addColorStop(0.3, `rgba(180, 210, 240, ${p.opacity * 0.5})`);
+      grad.addColorStop(1, `rgba(200, 220, 245, ${p.opacity})`);
+
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = p.thickness;
+      ctx.stroke();
+
+      p.y += p.speed;
+      p.x += p.wind;
+
+      // Spawn splash when raindrop hits bottom
+      if (p.y > canvas.height) {
+        if (p.layer > 0.5 && Math.random() > 0.6) {
+          splashes.push({
+            x: p.x,
+            y: canvas.height,
+            r: 0,
+            maxR: 4 + Math.random() * 8,
+            opacity: 0.5 + Math.random() * 0.3,
+            speed: 0.4 + Math.random() * 0.3,
+          });
+        }
+        p.y = -p.len - Math.random() * canvas.height * 0.3;
+        p.x = Math.random() * canvas.width * 1.5 - canvas.width * 0.25;
+      }
+    }
+
+    function drawSplashes() {
+      for (let i = splashes.length - 1; i >= 0; i--) {
+        const s = splashes[i];
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, Math.PI, 0);
+        ctx.strokeStyle = `rgba(200, 220, 245, ${s.opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        s.r += s.speed;
+        s.opacity -= 0.02;
+
+        if (s.opacity <= 0 || s.r >= s.maxR) {
+          splashes.splice(i, 1);
+        }
+      }
+    }
+
+    /* --- Snowflakes with crystalline glow --- */
+    function drawSnow(p) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+
+      // Outer glow
+      if (p.r > 3) {
+        const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, p.r * 2);
+        glow.addColorStop(0, `rgba(220, 230, 255, ${p.opacity * 0.3})`);
+        glow.addColorStop(1, 'rgba(220, 230, 255, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(-p.r * 2, -p.r * 2, p.r * 4, p.r * 4);
+      }
+
+      // Draw snowflake — larger ones get a crystal shape
+      if (p.r > 3.5) {
+        // 6-pointed crystal
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i;
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(angle) * p.r, Math.sin(angle) * p.r);
+          // Small branches
+          const bx = Math.cos(angle) * p.r * 0.6;
+          const by = Math.sin(angle) * p.r * 0.6;
+          ctx.moveTo(bx, by);
+          ctx.lineTo(bx + Math.cos(angle + 0.8) * p.r * 0.3, by + Math.sin(angle + 0.8) * p.r * 0.3);
+          ctx.moveTo(bx, by);
+          ctx.lineTo(bx + Math.cos(angle - 0.8) * p.r * 0.3, by + Math.sin(angle - 0.8) * p.r * 0.3);
+        }
+        ctx.strokeStyle = `rgba(255, 255, 255, ${p.opacity})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else {
+        // Small dots
+        ctx.beginPath();
+        ctx.arc(0, 0, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      // Movement with wobble
+      p.y += p.speed;
+      p.x += p.wind + Math.sin(p.y * p.wobbleSpeed) * p.wobbleAmp;
+      p.rotation += p.rotSpeed;
+
+      if (p.y > canvas.height + p.r) {
+        p.y = -p.r * 2;
+        p.x = Math.random() * canvas.width;
+      }
+      if (p.x > canvas.width + 50) p.x = -50;
+      if (p.x < -50) p.x = canvas.width + 50;
+    }
+
+    /* --- Stars with color tinting and cross-shaped sparkle --- */
+    function drawStar(p) {
+      const t = Date.now() * p.twinkleSpeed + p.twinkleOffset;
+      const flicker = Math.sin(t) * 0.5 + 0.5;
+      const brightness = 0.3 + flicker * 0.7;
+
+      // Cross sparkle for brighter stars
+      if (p.r > 1.2) {
+        const sparkleLen = p.r * 4 * flicker;
+        const sparkleOpacity = brightness * 0.4;
+        ctx.strokeStyle = `hsla(${p.hue}, 30%, 90%, ${sparkleOpacity})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(p.x - sparkleLen, p.y);
+        ctx.lineTo(p.x + sparkleLen, p.y);
+        ctx.moveTo(p.x, p.y - sparkleLen);
+        ctx.lineTo(p.x, p.y + sparkleLen);
+        ctx.stroke();
+      }
+
+      // Star glow
+      const glowR = p.r * 3;
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
+      glow.addColorStop(0, `hsla(${p.hue}, 30%, 95%, ${brightness * 0.6})`);
+      glow.addColorStop(0.5, `hsla(${p.hue}, 30%, 85%, ${brightness * 0.1})`);
+      glow.addColorStop(1, `hsla(${p.hue}, 30%, 80%, 0)`);
+      ctx.fillStyle = glow;
+      ctx.fillRect(p.x - glowR, p.y - glowR, glowR * 2, glowR * 2);
+
+      // Star core
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * flicker * 0.8, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${p.hue}, 20%, 95%, ${brightness})`;
+      ctx.fill();
+    }
+
+    /* --- Shooting star --- */
+    function drawShootingStar() {
+      const s = shootingStar;
+      s.trail.unshift({ x: s.x, y: s.y });
+      if (s.trail.length > 25) s.trail.pop();
+
+      // Draw trail
+      for (let i = 0; i < s.trail.length; i++) {
+        const t = s.trail[i];
+        const alpha = (1 - i / s.trail.length) * s.life;
+        const r = (1 - i / s.trail.length) * 2.5;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 240, ${alpha})`;
+        ctx.fill();
+      }
+
+      // Head glow
+      const headGlow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 15);
+      headGlow.addColorStop(0, `rgba(255, 255, 220, ${s.life * 0.8})`);
+      headGlow.addColorStop(1, 'rgba(255, 255, 220, 0)');
+      ctx.fillStyle = headGlow;
+      ctx.fillRect(s.x - 15, s.y - 15, 30, 30);
+
+      s.x += s.vx;
+      s.y += s.vy;
+      s.life -= 0.015;
+
+      if (s.life <= 0 || s.x > canvas.width || s.y > canvas.height) {
+        shootingStar = null;
+      }
+    }
+
+    /* --- Sun with dynamic rays and lens flare --- */
+    function drawSun() {
+      const cx = canvas.width * 0.8;
+      const cy = canvas.height * 0.13;
+      const t = Date.now() * 0.001;
+      const pulse = Math.sin(t * 0.5) * 0.15 + 1;
+
+      // Wide atmospheric glow
+      const atmoGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 500 * pulse);
+      atmoGlow.addColorStop(0, 'rgba(255, 220, 120, 0.25)');
+      atmoGlow.addColorStop(0.2, 'rgba(255, 200, 80, 0.1)');
+      atmoGlow.addColorStop(0.5, 'rgba(255, 180, 50, 0.03)');
+      atmoGlow.addColorStop(1, 'rgba(255, 160, 30, 0)');
+      ctx.fillStyle = atmoGlow;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Inner glow ring
+      const innerGlow = ctx.createRadialGradient(cx, cy, 30, cx, cy, 120 * pulse);
+      innerGlow.addColorStop(0, 'rgba(255, 240, 180, 0.5)');
+      innerGlow.addColorStop(0.5, 'rgba(255, 220, 130, 0.15)');
+      innerGlow.addColorStop(1, 'rgba(255, 200, 80, 0)');
+      ctx.fillStyle = innerGlow;
+      ctx.fillRect(cx - 200, cy - 200, 400, 400);
+
+      // Rotating soft rays
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 0.1);
+      for (let i = 0; i < 16; i++) {
+        const angle = (Math.PI * 2 / 16) * i;
+        const rayLen = 160 + Math.sin(t * 1.5 + i * 0.7) * 50;
+        const rayWidth = 12 + Math.sin(t * 2 + i) * 5;
+
+        ctx.save();
+        ctx.rotate(angle);
+        const rayGrad = ctx.createLinearGradient(20, 0, rayLen, 0);
+        rayGrad.addColorStop(0, `rgba(255, 230, 150, ${0.12 + Math.sin(t + i) * 0.04})`);
+        rayGrad.addColorStop(0.7, `rgba(255, 220, 120, ${0.04 + Math.sin(t * 1.5 + i) * 0.02})`);
+        rayGrad.addColorStop(1, 'rgba(255, 220, 120, 0)');
+
+        ctx.beginPath();
+        ctx.moveTo(20, -2);
+        ctx.lineTo(rayLen, -rayWidth);
+        ctx.lineTo(rayLen, rayWidth);
+        ctx.lineTo(20, 2);
+        ctx.closePath();
+        ctx.fillStyle = rayGrad;
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // Sun core
+      const sunGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 40 * pulse);
+      sunGrad.addColorStop(0, 'rgba(255, 250, 220, 0.95)');
+      sunGrad.addColorStop(0.5, 'rgba(255, 235, 170, 0.8)');
+      sunGrad.addColorStop(1, 'rgba(255, 210, 100, 0.4)');
+      ctx.beginPath();
+      ctx.arc(cx, cy, 40 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = sunGrad;
+      ctx.fill();
+
+      // Lens flare dots along a diagonal
+      const flareAngle = Math.PI * 0.75;
+      const flareDots = [
+        { dist: 100, r: 15, opacity: 0.06 },
+        { dist: 180, r: 8, opacity: 0.08 },
+        { dist: 260, r: 25, opacity: 0.04 },
+        { dist: 350, r: 6, opacity: 0.1 },
+      ];
+      for (const dot of flareDots) {
+        const fx = cx + Math.cos(flareAngle) * dot.dist;
+        const fy = cy + Math.sin(flareAngle) * dot.dist;
+        const flareGrad = ctx.createRadialGradient(fx, fy, 0, fx, fy, dot.r);
+        flareGrad.addColorStop(0, `rgba(255, 230, 180, ${dot.opacity * pulse})`);
+        flareGrad.addColorStop(1, 'rgba(255, 230, 180, 0)');
+        ctx.fillStyle = flareGrad;
+        ctx.beginPath();
+        ctx.arc(fx, fy, dot.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    /* --- Floating light motes for sunny weather --- */
+    function drawMote(p) {
+      const pulse = Math.sin(Date.now() * 0.002 + p.wobble) * 0.5 + 0.5;
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 4);
+      glow.addColorStop(0, `rgba(255, 240, 200, ${p.opacity * pulse})`);
+      glow.addColorStop(1, 'rgba(255, 240, 200, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(p.x - p.r * 4, p.y - p.r * 4, p.r * 8, p.r * 8);
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 250, 230, ${p.opacity * 1.5 * pulse})`;
+      ctx.fill();
+
+      p.x += p.speedX + Math.sin(Date.now() * 0.001 + p.wobble) * 0.2;
+      p.y += p.speedY;
+      p.wobble += 0.005;
+
+      if (p.y < -20) { p.y = canvas.height + 20; p.x = Math.random() * canvas.width; }
+      if (p.x < -20) p.x = canvas.width + 20;
+      if (p.x > canvas.width + 20) p.x = -20;
+    }
+
+    /* --- Multi-puff realistic clouds --- */
+    function drawCloud(p) {
+      ctx.save();
+      // Draw a cloud as a cluster of overlapping ellipses
+      const baseY = p.y;
+      for (let i = 0; i < p.puffs; i++) {
+        const px = p.x + (i - p.puffs / 2) * (p.w / p.puffs) * 0.7;
+        const py = baseY + Math.sin(i * 1.2) * p.h * 0.3;
+        const pw = p.w / p.puffs * 1.2;
+        const ph = p.h * (0.7 + Math.sin(i * 0.8) * 0.3);
+
+        const cloudGrad = ctx.createRadialGradient(px, py, 0, px, py, Math.max(pw, ph));
+        cloudGrad.addColorStop(0, `rgba(200, 210, 220, ${p.opacity * 1.5})`);
+        cloudGrad.addColorStop(0.5, `rgba(180, 195, 210, ${p.opacity * 0.8})`);
+        cloudGrad.addColorStop(1, `rgba(160, 180, 200, 0)`);
+
+        ctx.beginPath();
+        ctx.ellipse(px, py, pw, ph, 0, 0, Math.PI * 2);
+        ctx.fillStyle = cloudGrad;
+        ctx.fill();
+      }
+      ctx.restore();
+
+      p.x += p.speed;
+      if (p.x - p.w > canvas.width) p.x = -p.w;
+    }
+
+    /* --- Fog/mist particle --- */
+    function drawMist(p) {
+      const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      glow.addColorStop(0, `rgba(180, 195, 210, ${p.opacity})`);
+      glow.addColorStop(1, 'rgba(180, 195, 210, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      p.x += p.speedX;
+      if (p.x > canvas.width + p.r) p.x = -p.r;
+      if (p.x < -p.r) p.x = canvas.width + p.r;
+    }
+
+    /* --- Fog wave overlay for cloudy --- */
+    function drawFogWaves() {
+      ctx.save();
+      ctx.globalAlpha = 0.035;
+      for (let wave = 0; wave < 3; wave++) {
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height);
+        for (let x = 0; x <= canvas.width; x += 8) {
+          const y = canvas.height * (0.6 + wave * 0.1)
+            + Math.sin(x * 0.003 + fogOffset + wave * 2) * 40
+            + Math.sin(x * 0.007 + fogOffset * 1.5 + wave) * 20;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(180, 195, 215, 1)`;
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    /* --- Ambient floating particles --- */
+    function drawAmbient(p) {
+      const pulse = Math.sin(Date.now() * 0.001 + p.pulse) * 0.5 + 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * (0.5 + pulse * 0.5), 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity * pulse})`;
+      ctx.fill();
+
+      p.x += p.speedX;
+      p.y += p.speedY;
+      p.pulse += 0.01;
+
+      if (p.x < -10) p.x = canvas.width + 10;
+      if (p.x > canvas.width + 10) p.x = -10;
+      if (p.y < -10) p.y = canvas.height + 10;
+      if (p.y > canvas.height + 10) p.y = -10;
+    }
+
+    /* --- Lightning bolt with branching --- */
+    function drawLightningBolt() {
+      const startX = canvas.width * (0.15 + Math.random() * 0.7);
+      let x = startX, y = 0;
+      const points = [{ x, y }];
+
+      while (y < canvas.height * 0.75) {
+        x += (Math.random() - 0.5) * 70;
+        y += Math.random() * 35 + 12;
+        points.push({ x, y });
+      }
+
+      // Main bolt — bright core
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (const pt of points) ctx.lineTo(pt.x, pt.y);
+      ctx.strokeStyle = 'rgba(220, 225, 255, 0.95)';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = 'rgba(150, 170, 255, 1)';
+      ctx.shadowBlur = 30;
+      ctx.stroke();
+
+      // Outer glow pass
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (const pt of points) ctx.lineTo(pt.x, pt.y);
+      ctx.strokeStyle = 'rgba(160, 180, 255, 0.4)';
+      ctx.lineWidth = 8;
+      ctx.shadowBlur = 60;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Branches
+      for (let i = 2; i < points.length - 2; i++) {
+        if (Math.random() > 0.55) {
+          const branchLen = 2 + Math.floor(Math.random() * 4);
+          let bx = points[i].x, by = points[i].y;
+          const dir = Math.random() > 0.5 ? 1 : -1;
+          ctx.beginPath();
+          ctx.moveTo(bx, by);
+          for (let j = 0; j < branchLen; j++) {
+            bx += dir * (Math.random() * 30 + 10);
+            by += Math.random() * 25 + 8;
+            ctx.lineTo(bx, by);
+          }
+          ctx.strokeStyle = 'rgba(200, 210, 255, 0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = 'rgba(150, 170, 255, 0.5)';
+          ctx.shadowBlur = 15;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
+      }
+    }
+
+    /* ================================================================
+       REVERSE GEOCODING — Get location name from coordinates
+       Uses OpenStreetMap Nominatim (free, no key required)
+       ================================================================ */
+    async function reverseGeocode(lat, lon) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16&accept-language=zh-CN`,
+          { headers: { 'Accept-Language': 'zh-CN' } }
+        );
+        const data = await res.json();
+        const addr = data.address || {};
+        // Build a short location string: district + neighbourhood/road
+        const district = addr.city_district || addr.district || addr.county || addr.city || '';
+        const detail = addr.neighbourhood || addr.road || addr.suburb || addr.town || '';
+        if (district && detail) return `${district} ${detail}`;
+        if (district) return district;
+        if (data.display_name) return data.display_name.split(',').slice(0, 2).join(' ');
+        return '未知位置';
+      } catch {
+        return '未知位置';
+      }
+    }
+
+    /* ================================================================
+       GEOLOCATION & DATA FETCHING
+       ================================================================ */
+    let cachedWeatherData = null;
+
+    async function init() {
+      const { time } = applyPalette(null);
+      initParticles('clear', time);
+      animate();
+
+      try {
+        const coords = await getUserLocation();
+
+        // Fetch location name and weather data in parallel
+        const [locationName, data] = await Promise.all([
+          reverseGeocode(coords.lat, coords.lon),
+          fetchWeather(coords.lat, coords.lon),
+        ]);
+
+        // Update location badge
+        document.getElementById('locationText').textContent = locationName;
+
+        cachedWeatherData = data;
+        const current = data.currentWeather;
+        const conditionCode = current?.conditionCode || 'Clear';
+
+        const result = applyPalette(conditionCode);
+        if (animationId) cancelAnimationFrame(animationId);
+        initParticles(result.category, result.time);
+        animate();
+
+        renderWeather(current);
+        renderForecast(data.forecastDaily);
+      } catch (err) {
+        console.error('Init error:', err);
+        document.getElementById('locationText').textContent = '定位失败';
+        document.getElementById('weatherMain').innerHTML = `
+          <p class="condition-text" style="font-size:1.2rem;">无法获取天气数据</p>
+          <p style="font-size:0.85rem;opacity:0.5;margin-top:0.5rem;">${err.message}</p>
+        `;
+      }
+    }
+
+    function getUserLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('浏览器不支持定位功能'));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          () => reject(new Error('定位失败，请允许位置权限')),
+          { timeout: 10000 }
+        );
+      });
+    }
+
+    async function fetchWeather(lat, lon) {
+      const res = await fetch(`${API_BASE}/api/weather?lat=${lat}&lon=${lon}`);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    /* ================================================================
+       RENDER FUNCTIONS
+       ================================================================ */
+
+    function renderWeather(current) {
+      if (!current) return;
+
+      const temp = Math.round(current.temperature);
+      const condition = translateCondition(current.conditionCode);
+      const comfort = getComfortLevel(current.temperatureApparent);
+      const uvLevel = getUVLevel(current.uvIndex);
+      const humidity = Math.round(current.humidity * 100);
+      const windSpeed = current.windSpeed.toFixed(2);
+
+      document.getElementById('weatherMain').innerHTML = `
+        <div class="temp-display">${temp}<span class="unit">°</span></div>
+        <div class="condition-text">${condition}</div>
+        <div class="indices-bar">
+          <div class="index-item">
+            <div class="index-label">舒适度</div>
+            <div class="index-value">${comfort}</div>
+          </div>
+          <div class="index-item">
+            <div class="index-label">紫外线</div>
+            <div class="index-value">${uvLevel}</div>
+          </div>
+          <div class="index-item">
+            <div class="index-label">相对湿度</div>
+            <div class="index-value">${humidity}%</div>
+          </div>
+          <div class="index-item">
+            <div class="index-label">风速</div>
+            <div class="index-value">${windSpeed} km/h</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderForecast(forecastDaily) {
+      const container = document.getElementById('forecastContent');
+
+      if (!forecastDaily?.days?.length) {
+        container.innerHTML = '<p style="opacity:0.6;">暂无预报数据</p>';
+        return;
+      }
+
+      const days = forecastDaily.days.slice(1, 4);
+      const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+      container.innerHTML = days.map(day => {
+        const date = new Date(day.forecastStart);
+        const dayName = dayNames[date.getDay()];
+        const monthDay = `${date.getMonth() + 1}/${date.getDate()}`;
+        const condition = translateCondition(day.conditionCode);
+        const high = Math.round(day.temperatureMax);
+        const low = Math.round(day.temperatureMin);
+
+        return `
+          <div class="forecast-day">
+            <div class="forecast-day-name">${dayName} · ${monthDay}</div>
+            <div class="forecast-day-main">
+              <div class="forecast-condition">${condition}</div>
+              <div class="forecast-temps">
+                <div class="forecast-high">${high}°</div>
+                <div class="forecast-low">${low}°</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* ================================================================
+       FORECAST PANEL — Open / Close
+       ================================================================ */
+    document.getElementById('openForecast').addEventListener('click', () => {
+      document.getElementById('forecastPanel').classList.add('open');
+      document.getElementById('modalOverlay').classList.add('open');
+    });
+
+    function closeForecastPanel() {
+      document.getElementById('forecastPanel').classList.remove('open');
+      document.getElementById('modalOverlay').classList.remove('open');
+    }
+
+    document.getElementById('closeForecast').addEventListener('click', closeForecastPanel);
+    document.getElementById('modalOverlay').addEventListener('click', closeForecastPanel);
+
+    /* ================================================================
+       TODAY'S THOUGHTS — Submit + Paper Plane Animation + Toast
+       ================================================================ */
+    document.getElementById('submitThought').addEventListener('click', submitThought);
+    document.getElementById('thoughtInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitThought();
+    });
+
+    function submitThought() {
+      const input = document.getElementById('thoughtInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+
+      const btn = document.getElementById('submitThought');
+      const rect = btn.getBoundingClientRect();
+
+      const plane = document.createElement('div');
+      plane.className = 'paper-plane';
+      plane.textContent = '\u2708';
+      plane.style.left = rect.left + 'px';
+      plane.style.top = rect.top + 'px';
+      document.body.appendChild(plane);
+
+      requestAnimationFrame(() => plane.classList.add('fly'));
+      setTimeout(() => plane.remove(), 2000);
+      setTimeout(() => showToast('树洞听到啦'), 600);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    /* ================================================================
+       STARTUP
+       ================================================================ */
+    init();
+  </script>
+</body>
+</html>
