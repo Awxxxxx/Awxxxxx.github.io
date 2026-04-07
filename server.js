@@ -2,13 +2,18 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const multer = require('multer');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 const upload = multer({ storage: multer.memoryStorage() });
+
+// 生成随机 UUID (替换原来的 uuid 包以避免 ESM 问题)
+function uuidv4() {
+    return crypto.randomUUID();
+}
 
 // Serve frontend files
 app.use(express.static('www'));
