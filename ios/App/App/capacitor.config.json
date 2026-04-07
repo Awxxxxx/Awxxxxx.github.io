@@ -1,0 +1,29 @@
+{
+	"appId": "com.bytedance.treeholeweather",
+	"appName": "树洞天气",
+	"webDir": "www",
+	"bundledWebRuntime": false,
+	"server": {
+		"cleartext": true,
+		"allowNavigation": [
+			"*"
+		]
+	},
+	"plugins": {
+		"StatusBar": {
+			"overlaysWebView": true,
+			"style": "DARK"
+		},
+		"SplashScreen": {
+			"launchShowDuration": 500,
+			"launchAutoHide": true,
+			"backgroundColor": "#FDFFF2",
+			"showSpinner": false
+		}
+	},
+	"packageClassList": [
+		"GeolocationPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin"
+	]
+}
