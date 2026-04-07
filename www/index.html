@@ -1130,7 +1130,7 @@
                 
                 // iOS适配关键点：在 App 中运行时，必须使用绝对路径指向您的线上后端。
                 const isNativeApp = window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web';
-                const baseUrl = isNativeApp ? 'https://www.moodweather.cn' : '';
+                const baseUrl = isNativeApp ? 'https://www.xxxxxxx.tw' : '';
 
                 // 移除经纬度后面的逗号，确保 URL 格式正确
                 let apiUrl = `${baseUrl}/api/weather?lat=${lat}&lon=${lon}`;
