@@ -1669,28 +1669,63 @@
 
         // ================= 语音输入相关 =================
         let isVoiceMode = false;
-        let audioContext = null;
-        let mediaStream = null;
-        let recorderProcessor = null;
-        let audioChunks = [];
-        let isRecording = false;
         let isVoiceInput = false; // 用于标记当前这条消息是否来源于语音输入
         let waveInterval = null;
+        let recognition = null;
+        let finalTranscript = '';
+
+        // 初始化浏览器原生语音识别
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = true; // 连续识别
+            recognition.interimResults = true; // 返回临时结果，实现边说边上屏
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                document.getElementById('mind-input').value = finalTranscript + interimTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error("语音识别错误:", event.error);
+                if (event.error !== 'no-speech') {
+                    showToast("语音识别出错: " + event.error);
+                    cancelVoice();
+                }
+            };
+        }
 
         async function toggleVoiceMode() {
+            if (!SpeechRecognition) {
+                showToast("您的设备或浏览器不支持原生语音识别");
+                return;
+            }
             if (!isVoiceMode) {
-                // 请求麦克风权限并开始录音
                 try {
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    // 请求麦克风权限（iOS需要显式授权）
+                    await navigator.mediaDevices.getUserMedia({ audio: true }); 
                     const inputGroup = document.getElementById('input-group');
                     inputGroup.classList.add('voice-mode');
                     inputGroup.classList.add('recording');
                     document.getElementById('waveform').style.display = 'flex';
-                    document.getElementById('voice-status').innerText = '正在倾听...';
+                    document.getElementById('voice-status').innerText = '正在倾听，请说话...';
                     document.getElementById('voice-action-btn').innerText = '说完了';
+                    document.getElementById('voice-action-btn').disabled = false;
                     document.getElementById('voice-action-btn').onclick = finishVoice;
+                    
+                    finalTranscript = '';
+                    document.getElementById('mind-input').value = '';
+                    recognition.start();
+                    
                     isVoiceMode = true;
-                    startRecording(mediaStream);
                     startWaveAnimation();
                 } catch (e) {
                     console.error("麦克风权限被拒绝或不可用", e);
@@ -1702,7 +1737,9 @@
         }
 
         function cancelVoice() {
-            stopRecording();
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
             stopWaveAnimation();
             const inputGroup = document.getElementById('input-group');
             inputGroup.classList.remove('voice-mode');
@@ -1710,130 +1747,38 @@
             isVoiceMode = false;
         }
 
-        function startRecording(stream) {
-            audioChunks = [];
-            isRecording = true;
-            // 保证 sampleRate 严格为 16000
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioContext = new AudioContext({ sampleRate: 16000 });
-            const source = audioContext.createMediaStreamSource(stream);
-            recorderProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-            
-            recorderProcessor.onaudioprocess = function(e) {
-                if (!isRecording) return;
-                // 复制 Float32Array 避免引用被修改
-                const channelData = e.inputBuffer.getChannelData(0);
-                audioChunks.push(new Float32Array(channelData));
-            };
-            
-            source.connect(recorderProcessor);
-            recorderProcessor.connect(audioContext.destination);
-        }
-
-        function stopRecording() {
-            isRecording = false;
-            if (recorderProcessor) {
-                recorderProcessor.disconnect();
-                recorderProcessor = null;
-            }
-            if (mediaStream) {
-                mediaStream.getTracks().forEach(track => track.stop());
-                mediaStream = null;
-            }
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close();
-            }
-        }
-
-        function encodeWAV(samples, sampleRate) {
-            const buffer = new ArrayBuffer(44 + samples.length * 2);
-            const view = new DataView(buffer);
-            const writeString = (view, offset, string) => {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
-            };
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 36 + samples.length * 2, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, 1, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true);
-            view.setUint16(32, 2, true);
-            view.setUint16(34, 16, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, samples.length * 2, true);
-            let offset = 44;
-            for (let i = 0; i < samples.length; i++, offset += 2) {
-                let s = Math.max(-1, Math.min(1, samples[i]));
-                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-            }
-            return new Blob([view], { type: 'audio/wav' });
-        }
-
         async function finishVoice() {
             if (document.getElementById('voice-action-btn').disabled) return;
             
             if (document.getElementById('voice-action-btn').innerText === '重新说') {
                 // 点击重新说
+                finalTranscript = '';
                 document.getElementById('mind-input').value = "";
                 document.getElementById('voice-action-btn').innerText = '说完了';
-                document.getElementById('voice-status').innerText = '正在倾听...';
+                document.getElementById('voice-status').innerText = '正在倾听，请说话...';
                 document.getElementById('input-group').classList.add('recording');
                 document.getElementById('waveform').style.display = 'flex';
-                mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                startRecording(mediaStream);
+                try { recognition.start(); } catch(e) {}
                 startWaveAnimation();
                 return;
             }
 
-            stopRecording();
-            stopWaveAnimation();
-            document.getElementById('voice-status').innerText = '正在识别...';
-            document.getElementById('voice-action-btn').disabled = true;
-            document.getElementById('waveform').style.display = 'none'; // 隐藏波形
-
-            // 合并所有音频块
-            const totalLength = audioChunks.reduce((acc, val) => acc + val.length, 0);
-            const samples = new Float32Array(totalLength);
-            let offset = 0;
-            for (let i = 0; i < audioChunks.length; i++) {
-                samples.set(audioChunks[i], offset);
-                offset += audioChunks[i].length;
+            // 点击说完了
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
             }
-
-            const wavBlob = encodeWAV(samples, 16000);
-
-            try {
-                const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                const isNativeApp = window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web';
-                const baseUrl = isNativeApp ? 'https://www.moodweather.cn' : (isLocalhost && window.location.port !== '3000' ? 'http://localhost:3000' : '');
-                
-                const response = await fetch(`${baseUrl}/api/asr`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'audio/wav'
-                    },
-                    body: wavBlob
-                });
-                
-                const data = await response.json();
-                if (data.text) {
-                    document.getElementById('mind-input').value = data.text;
-                    document.getElementById('voice-status').innerText = '识别完成，您可以直接发送或重新说';
-                    document.getElementById('voice-action-btn').innerText = '重新说';
-                    document.getElementById('voice-action-btn').disabled = false;
-                    document.getElementById('input-group').classList.remove('recording'); // 显示输入框和发送按钮
-                    isVoiceInput = true; // 标记这是通过语音输入的
-                } else {
-                    throw new Error("识别失败");
-                }
-            } catch (e) {
-                console.error(e);
-                showToast("语音识别失败");
+            stopWaveAnimation();
+            
+            const currentText = document.getElementById('mind-input').value.trim();
+            if (currentText) {
+                document.getElementById('voice-status').innerText = '识别完成，您可以直接发送或重新说';
+                document.getElementById('voice-action-btn').innerText = '重新说';
+                document.getElementById('voice-action-btn').disabled = false;
+                document.getElementById('waveform').style.display = 'none'; // 隐藏波形
+                document.getElementById('input-group').classList.remove('recording'); // 显示输入框和发送按钮
+                isVoiceInput = true; // 标记这是通过语音输入的
+            } else {
+                showToast("没有听到声音，请重新说");
                 cancelVoice();
             }
         }
