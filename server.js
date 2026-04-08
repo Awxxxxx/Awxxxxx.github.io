@@ -2,52 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.raw({ type: 'audio/wav', limit: '10mb' })); // 处理前端直接传来的 raw audio
-
-// 生成随机 UUID (替换原来的 uuid 包以避免 ESM 问题)
-function uuidv4() {
-    return crypto.randomUUID();
-}
 
 // Serve frontend files
 app.use(express.static('www'));
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-67137a3b55104238aa30608376b91f4d';
-const VOLCENGINE_APP_ID = process.env.VOLCENGINE_APP_ID || '1436594062';
-const VOLCENGINE_TOKEN = process.env.VOLCENGINE_TOKEN || 'F1I4Xoj_5bfJA0jklIdNh5suWaJY0MUx';
-const ttsCache = new Map();
-const MAX_TTS_CACHE_SIZE = 50;
-
-function getTTSCacheKey(text) {
-    return text.trim();
-}
-
-function getCachedTTS(key) {
-    if (!ttsCache.has(key)) return null;
-
-    const cached = ttsCache.get(key);
-    ttsCache.delete(key);
-    ttsCache.set(key, cached);
-    return cached;
-}
-
-function setCachedTTS(key, audioBuffer) {
-    if (ttsCache.has(key)) {
-        ttsCache.delete(key);
-    }
-
-    ttsCache.set(key, audioBuffer);
-
-    if (ttsCache.size > MAX_TTS_CACHE_SIZE) {
-        const oldestKey = ttsCache.keys().next().value;
-        ttsCache.delete(oldestKey);
-    }
-}
 
 const SYSTEM_PROMPT = `你现在是“树洞天气”APP里一个温暖、有同理心、且像人类好朋友一样的倾听者。
 用户会在这里分享他们的喜怒哀乐，或者只是随口说一些日常琐事。请你根据用户输入的内容和情绪，给出个性化的回复。
@@ -126,65 +89,6 @@ app.post('/api/chat', async (req, res) => {
         console.error('DeepSeek API Error:', error.response ? error.response.data : error.message);
         res.write(`event: error\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\n\n`);
         res.end();
-    }
-});
-
-app.post('/api/tts', async (req, res) => {
-    const { text } = req.body;
-    if (!text) {
-        return res.status(400).json({ error: 'Text is required' });
-    }
-
-    const cacheKey = getTTSCacheKey(text);
-    const cachedAudio = getCachedTTS(cacheKey);
-    if (cachedAudio) {
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.send(cachedAudio);
-        return;
-    }
-
-    try {
-        const response = await axios({
-            method: 'post',
-            url: 'https://openspeech.bytedance.com/api/v1/tts',
-            headers: {
-                'Authorization': `Bearer;${VOLCENGINE_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            data: {
-                app: {
-                    appid: VOLCENGINE_APP_ID,
-                    token: VOLCENGINE_TOKEN,
-                    cluster: 'volcano_tts'
-                },
-                user: { uid: 'user_frontend' },
-                audio: {
-                    voice_type: 'BV700_streaming',
-                    encoding: 'mp3',
-                    speed_ratio: 1.0
-                },
-                request: {
-                    reqid: uuidv4(),
-                    text: text,
-                    text_type: 'plain',
-                    operation: 'query'
-                }
-            },
-            timeout: 15000
-        });
-
-        if (response.data.data) {
-            const audioBuffer = Buffer.from(response.data.data, 'base64');
-            setCachedTTS(cacheKey, audioBuffer);
-            res.setHeader('Content-Type', 'audio/mpeg');
-            res.send(audioBuffer);
-        } else {
-            console.error("TTS Error Data:", response.data);
-            res.status(500).json({ error: 'TTS Synthesis failed' });
-        }
-    } catch (error) {
-        console.error('Volcengine TTS Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'TTS Service unavailable' });
     }
 });
 
