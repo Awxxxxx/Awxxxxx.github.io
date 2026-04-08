@@ -1713,12 +1713,15 @@
         function startRecording(stream) {
             audioChunks = [];
             isRecording = true;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+            // 保证 sampleRate 严格为 16000
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioContext = new AudioContext({ sampleRate: 16000 });
             const source = audioContext.createMediaStreamSource(stream);
             recorderProcessor = audioContext.createScriptProcessor(4096, 1, 1);
             
             recorderProcessor.onaudioprocess = function(e) {
                 if (!isRecording) return;
+                // 复制 Float32Array 避免引用被修改
                 const channelData = e.inputBuffer.getChannelData(0);
                 audioChunks.push(new Float32Array(channelData));
             };
@@ -1772,11 +1775,12 @@
         }
 
         async function finishVoice() {
+            if (document.getElementById('voice-action-btn').disabled) return;
+            
             if (document.getElementById('voice-action-btn').innerText === '重新说') {
                 // 点击重新说
                 document.getElementById('mind-input').value = "";
                 document.getElementById('voice-action-btn').innerText = '说完了';
-                document.getElementById('voice-action-btn').onclick = finishVoice;
                 document.getElementById('voice-status').innerText = '正在倾听...';
                 document.getElementById('input-group').classList.add('recording');
                 document.getElementById('waveform').style.display = 'flex';
