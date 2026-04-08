@@ -3,12 +3,11 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const crypto = require('crypto');
-const multer = require('multer');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
-const upload = multer({ storage: multer.memoryStorage() });
+app.use(express.raw({ type: 'audio/wav', limit: '10mb' })); // 处理前端直接传来的 raw audio
 
 // 生成随机 UUID (替换原来的 uuid 包以避免 ESM 问题)
 function uuidv4() {
@@ -67,7 +66,7 @@ app.post('/api/chat', async (req, res) => {
             const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
             for (const line of lines) {
                 if (line.replace(/^data: /, '') === '[DONE]') {
-                    res.write('event: done\\ndata: [DONE]\\n\\n');
+                    res.write('event: done\ndata: [DONE]\n\n');
                     res.end();
                     return;
                 }
@@ -76,7 +75,7 @@ app.post('/api/chat', async (req, res) => {
                         const parsed = JSON.parse(line.replace(/^data: /, ''));
                         if (parsed.choices && parsed.choices[0].delta.content) {
                             const content = parsed.choices[0].delta.content;
-                            res.write(`data: ${JSON.stringify({ content })}\\n\\n`);
+                            res.write(`data: ${JSON.stringify({ content })}\n\n`);
                         }
                     } catch (e) {
                         // ignore parse error for incomplete chunks or keep-alive pings
@@ -91,13 +90,13 @@ app.post('/api/chat', async (req, res) => {
 
         response.data.on('error', (err) => {
             console.error('Stream error:', err);
-            res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\\n\\n`);
+            res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
             res.end();
         });
 
     } catch (error) {
         console.error('DeepSeek API Error:', error.response ? error.response.data : error.message);
-        res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\\n\\n`);
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\n\n`);
         res.end();
     }
 });
@@ -151,13 +150,13 @@ app.post('/api/tts', async (req, res) => {
     }
 });
 
-app.post('/api/asr', upload.single('file'), async (req, res) => {
-    if (!req.file) {
+app.post('/api/asr', async (req, res) => {
+    if (!req.body || !Buffer.isBuffer(req.body) || req.body.length === 0) {
         return res.status(400).json({ error: 'Audio file is required' });
     }
 
     try {
-        const audioBuffer = req.file.buffer;
+        const audioBuffer = req.body;
         
         const response = await axios({
             method: 'post',
@@ -204,7 +203,7 @@ app.post('/api/asr', upload.single('file'), async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-if (process.env.NODE_ENV !== 'production') {
+if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });
