@@ -1667,6 +1667,12 @@
             }, 3000);
         }
 
+        // 尝试通过 Capacitor SpeechRecognition 插件作为备选方案（解决 WKWebView service-not-allowed 问题）
+        let capSpeechRecognition = null;
+        if (window.Capacitor && window.Capacitor.Plugins.SpeechRecognition) {
+            capSpeechRecognition = window.Capacitor.Plugins.SpeechRecognition;
+        }
+
         // ================= 语音输入相关 =================
         let isVoiceMode = false;
         let isVoiceInput = false; // 用于标记当前这条消息是否来源于语音输入
@@ -1704,14 +1710,22 @@
         }
 
         async function toggleVoiceMode() {
-            if (!SpeechRecognition) {
+            if (!SpeechRecognition && !capSpeechRecognition) {
                 showToast("您的设备或浏览器不支持原生语音识别");
                 return;
             }
             if (!isVoiceMode) {
                 try {
                     // 请求麦克风权限（iOS需要显式授权）
-                    await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                    if (capSpeechRecognition) {
+                        const hasPerm = await capSpeechRecognition.hasPermission();
+                        if (!hasPerm.permission) {
+                            await capSpeechRecognition.requestPermission();
+                        }
+                    } else {
+                        await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                    }
+                    
                     const inputGroup = document.getElementById('input-group');
                     inputGroup.classList.add('voice-mode');
                     inputGroup.classList.add('recording');
@@ -1723,13 +1737,30 @@
                     
                     finalTranscript = '';
                     document.getElementById('mind-input').value = '';
-                    recognition.start();
+                    
+                    if (capSpeechRecognition) {
+                        await capSpeechRecognition.start({
+                            language: "zh-CN",
+                            maxResults: 1,
+                            prompt: "请说话",
+                            partialResults: true,
+                            popup: false
+                        });
+                        
+                        capSpeechRecognition.addListener('partialResults', (data) => {
+                            if (data.matches && data.matches.length > 0) {
+                                document.getElementById('mind-input').value = data.matches[0];
+                            }
+                        });
+                    } else if (recognition) {
+                        recognition.start();
+                    }
                     
                     isVoiceMode = true;
                     startWaveAnimation();
                 } catch (e) {
-                    console.error("麦克风权限被拒绝或不可用", e);
-                    showToast("无法访问麦克风，请检查权限设置");
+                    console.error("启动语音识别失败", e);
+                    showToast("启动语音识别失败，请检查权限");
                 }
             } else {
                 cancelVoice();
@@ -1737,7 +1768,9 @@
         }
 
         function cancelVoice() {
-            if (recognition) {
+            if (capSpeechRecognition) {
+                try { capSpeechRecognition.stop(); } catch(e) {}
+            } else if (recognition) {
                 try { recognition.stop(); } catch(e) {}
             }
             stopWaveAnimation();
@@ -1758,13 +1791,29 @@
                 document.getElementById('voice-status').innerText = '正在倾听，请说话...';
                 document.getElementById('input-group').classList.add('recording');
                 document.getElementById('waveform').style.display = 'flex';
-                try { recognition.start(); } catch(e) {}
+                
+                if (capSpeechRecognition) {
+                    try { 
+                        await capSpeechRecognition.start({
+                            language: "zh-CN",
+                            maxResults: 1,
+                            prompt: "请说话",
+                            partialResults: true,
+                            popup: false
+                        });
+                    } catch(e) {}
+                } else if (recognition) {
+                    try { recognition.start(); } catch(e) {}
+                }
+                
                 startWaveAnimation();
                 return;
             }
 
             // 点击说完了
-            if (recognition) {
+            if (capSpeechRecognition) {
+                try { await capSpeechRecognition.stop(); } catch(e) {}
+            } else if (recognition) {
                 try { recognition.stop(); } catch(e) {}
             }
             stopWaveAnimation();
