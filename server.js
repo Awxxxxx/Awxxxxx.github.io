@@ -150,58 +150,6 @@ app.post('/api/tts', async (req, res) => {
     }
 });
 
-app.post('/api/asr', async (req, res) => {
-    if (!req.body || !Buffer.isBuffer(req.body) || req.body.length === 0) {
-        return res.status(400).json({ error: 'Audio file is required' });
-    }
-
-    try {
-        const audioBuffer = req.body;
-        
-        const response = await axios({
-            method: 'post',
-            url: 'https://openspeech.bytedance.com/api/v1/asr',
-            headers: {
-                'Authorization': `Bearer;${VOLCENGINE_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            data: {
-                app: {
-                    appid: VOLCENGINE_APP_ID,
-                    token: VOLCENGINE_TOKEN,
-                    cluster: 'volcengine_streaming_common'
-                },
-                user: { uid: 'user_frontend' },
-                audio: {
-                    format: 'wav',
-                    rate: 16000,
-                    bits: 16,
-                    channel: 1,
-                    codec: 'raw'
-                },
-                request: {
-                    reqid: uuidv4(),
-                    sequence: -1,
-                    text: '',
-                    session_id: uuidv4()
-                },
-                payload: audioBuffer.toString('base64')
-            }
-        });
-
-        if (response.data && response.data.result && response.data.result.length > 0) {
-            const text = response.data.result[0].text;
-            res.json({ text });
-        } else {
-            console.error("ASR Error Data:", response.data);
-            res.status(500).json({ error: 'ASR recognition failed or no text found' });
-        }
-    } catch (error) {
-        console.error('Volcengine ASR Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'ASR Service unavailable' });
-    }
-});
-
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => {
