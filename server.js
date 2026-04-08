@@ -17,9 +17,37 @@ function uuidv4() {
 // Serve frontend files
 app.use(express.static('www'));
 
-const DEEPSEEK_API_KEY = 'sk-67137a3b55104238aa30608376b91f4d';
-const VOLCENGINE_APP_ID = '1436594062';
-const VOLCENGINE_TOKEN = 'F1I4Xoj_5bfJA0jklIdNh5suWaJY0MUx';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-67137a3b55104238aa30608376b91f4d';
+const VOLCENGINE_APP_ID = process.env.VOLCENGINE_APP_ID || '1436594062';
+const VOLCENGINE_TOKEN = process.env.VOLCENGINE_TOKEN || 'F1I4Xoj_5bfJA0jklIdNh5suWaJY0MUx';
+const ttsCache = new Map();
+const MAX_TTS_CACHE_SIZE = 50;
+
+function getTTSCacheKey(text) {
+    return text.trim();
+}
+
+function getCachedTTS(key) {
+    if (!ttsCache.has(key)) return null;
+
+    const cached = ttsCache.get(key);
+    ttsCache.delete(key);
+    ttsCache.set(key, cached);
+    return cached;
+}
+
+function setCachedTTS(key, audioBuffer) {
+    if (ttsCache.has(key)) {
+        ttsCache.delete(key);
+    }
+
+    ttsCache.set(key, audioBuffer);
+
+    if (ttsCache.size > MAX_TTS_CACHE_SIZE) {
+        const oldestKey = ttsCache.keys().next().value;
+        ttsCache.delete(oldestKey);
+    }
+}
 
 const SYSTEM_PROMPT = `你现在是“树洞天气”APP里一个温暖、有同理心、且像人类好朋友一样的倾听者。
 用户会在这里分享他们的喜怒哀乐，或者只是随口说一些日常琐事。请你根据用户输入的内容和情绪，给出个性化的回复。
@@ -107,6 +135,14 @@ app.post('/api/tts', async (req, res) => {
         return res.status(400).json({ error: 'Text is required' });
     }
 
+    const cacheKey = getTTSCacheKey(text);
+    const cachedAudio = getCachedTTS(cacheKey);
+    if (cachedAudio) {
+        res.setHeader('Content-Type', 'audio/mpeg');
+        res.send(cachedAudio);
+        return;
+    }
+
     try {
         const response = await axios({
             method: 'post',
@@ -133,11 +169,13 @@ app.post('/api/tts', async (req, res) => {
                     text_type: 'plain',
                     operation: 'query'
                 }
-            }
+            },
+            timeout: 15000
         });
 
         if (response.data.data) {
             const audioBuffer = Buffer.from(response.data.data, 'base64');
+            setCachedTTS(cacheKey, audioBuffer);
             res.setHeader('Content-Type', 'audio/mpeg');
             res.send(audioBuffer);
         } else {
