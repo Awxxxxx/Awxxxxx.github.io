@@ -1606,7 +1606,7 @@
                     if (done) break;
 
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\\n');
+                    const lines = buffer.split('\n');
                     
                     // 保留最后一行如果不完整
                     buffer = lines.pop() || '';
@@ -1802,8 +1802,6 @@
             }
 
             const wavBlob = encodeWAV(samples, 16000);
-            const formData = new FormData();
-            formData.append('file', wavBlob, 'record.wav');
 
             try {
                 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -1812,7 +1810,10 @@
                 
                 const response = await fetch(`${baseUrl}/api/asr`, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'audio/wav'
+                    },
+                    body: wavBlob
                 });
                 
                 const data = await response.json();
