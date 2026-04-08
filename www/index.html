@@ -320,28 +320,38 @@
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            transition: border-color 0.3s, border-radius 0.3s, height 0.3s;
+            transition: border-color 0.24s ease, border-radius 0.24s ease, min-height 0.24s cubic-bezier(0.22, 1, 0.36, 1), padding 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease;
             width: 100%;
+            min-height: 56px;
             position: relative;
             overflow: hidden;
+            transform: translateZ(0);
         }
         .input-group.voice-mode {
-            border-radius: 20px;
+            border-radius: 28px;
             flex-direction: column;
             align-items: center;
-            padding: 20px;
-            min-height: 150px;
+            padding: 18px 20px;
+            min-height: 168px;
             justify-content: center;
+            gap: 16px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
         }
         .input-wrapper {
             display: flex;
             align-items: center;
             width: 100%;
-            transition: opacity 0.3s;
+            max-height: 64px;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        /* 当正在录音时隐藏输入框；当识别完成后（仍处于 voice-mode）显示输入框 */
+        /* 当正在录音时平滑隐藏输入框，让录音态更跟手 */
         .voice-mode.recording .input-wrapper {
-            display: none;
+            opacity: 0;
+            max-height: 0;
+            transform: translateY(-12px) scale(0.98);
+            pointer-events: none;
         }
         .input-group input {
             flex: 1;
@@ -387,14 +397,23 @@
         }
         /* 语音波形与控制区 */
         .voice-ui {
-            display: none;
+            display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            gap: 20px;
+            gap: 18px;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transform: translateY(14px) scale(0.98);
+            transition: max-height 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+            pointer-events: none;
         }
         .voice-mode .voice-ui {
-            display: flex;
+            max-height: 220px;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
         }
         .waveform {
             display: flex;
@@ -441,6 +460,7 @@
             font-size: 0.9rem;
             opacity: 0.8;
             margin-bottom: -10px;
+            transition: opacity 0.18s ease;
         }
 
         /* 底部版权 */
@@ -675,7 +695,7 @@
             100% { transform: translate(150px, -150px) scale(0.5) rotate(45deg); opacity: 0; }
         }
         .fly {
-            animation: flyAway 1s forwards ease-in-out;
+            animation: flyAway 0.7s forwards ease-in-out;
         }
 
         /* ================= Responsive ================= */
@@ -1420,63 +1440,148 @@
 
 
         // ================= 语音播放队列相关 =================
-        let ttsQueue = [];
+        let ttsPlaybackQueue = [];
+        let ttsResolvedChunks = new Map();
         let isPlayingTTS = false;
         let ttsAudioElement = new Audio();
         let sentenceBuffer = "";
+        let ttsPreviewTimer = null;
+        let ttsSessionId = 0;
+        let nextTTSChunkId = 0;
+        let nextTTSChunkToPlay = 0;
+        let currentTTSUrl = null;
+        const TTS_PREVIEW_MIN_LENGTH = 18;
+        const TTS_PREVIEW_IDLE_MS = 450;
 
         // 标点符号匹配正则
         const punctuationRegex = /([。！？\.\!\?；;\n]+)/;
+        ttsAudioElement.preload = 'auto';
+        ttsAudioElement.playsInline = true;
+
+        function revokeTTSUrl(url) {
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        }
 
         function resetTTS() {
-            ttsQueue = [];
+            ttsSessionId += 1;
+            clearTimeout(ttsPreviewTimer);
+            ttsResolvedChunks.forEach((clip) => revokeTTSUrl(clip.url));
+            ttsPlaybackQueue.forEach((clip) => revokeTTSUrl(clip.url));
+            ttsPlaybackQueue = [];
+            ttsResolvedChunks = new Map();
             isPlayingTTS = false;
             sentenceBuffer = "";
+            nextTTSChunkId = 0;
+            nextTTSChunkToPlay = 0;
             ttsAudioElement.pause();
             ttsAudioElement.currentTime = 0;
+            ttsAudioElement.removeAttribute('src');
+            if (currentTTSUrl) {
+                revokeTTSUrl(currentTTSUrl);
+                currentTTSUrl = null;
+            }
         }
 
         async function playNextTTS() {
-            if (ttsQueue.length === 0 || isPlayingTTS) return;
+            if (ttsPlaybackQueue.length === 0 || isPlayingTTS) return;
             
             isPlayingTTS = true;
-            const textToPlay = ttsQueue.shift();
+            const nextClip = ttsPlaybackQueue.shift();
+            currentTTSUrl = nextClip.url;
             
+            try {
+                ttsAudioElement.src = nextClip.url;
+                ttsAudioElement.onended = () => {
+                    revokeTTSUrl(currentTTSUrl);
+                    currentTTSUrl = null;
+                    isPlayingTTS = false;
+                    playNextTTS();
+                };
+                ttsAudioElement.onerror = () => {
+                    revokeTTSUrl(currentTTSUrl);
+                    currentTTSUrl = null;
+                    isPlayingTTS = false;
+                    playNextTTS();
+                };
+                await ttsAudioElement.play();
+            } catch (e) {
+                console.error("TTS 请求失败", e);
+                revokeTTSUrl(currentTTSUrl);
+                currentTTSUrl = null;
+                isPlayingTTS = false;
+                playNextTTS();
+            }
+        }
+
+        function flushResolvedTTSChunks() {
+            while (ttsResolvedChunks.has(nextTTSChunkToPlay)) {
+                ttsPlaybackQueue.push(ttsResolvedChunks.get(nextTTSChunkToPlay));
+                ttsResolvedChunks.delete(nextTTSChunkToPlay);
+                nextTTSChunkToPlay += 1;
+            }
+            playNextTTS();
+        }
+
+        async function queueTTSChunk(text) {
+            const cleanText = text.trim();
+            if (!cleanText) return;
+
+            const chunkId = nextTTSChunkId++;
+            const sessionId = ttsSessionId;
+
             try {
                 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                 const isNativeApp = window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web';
                 const baseUrl = isNativeApp ? 'https://www.moodweather.cn' : (isLocalhost && window.location.port !== '3000' ? 'http://localhost:3000' : '');
-                
+
                 const response = await fetch(`${baseUrl}/api/tts`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: textToPlay })
+                    body: JSON.stringify({ text: cleanText })
                 });
-                
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    ttsAudioElement.src = url;
-                    ttsAudioElement.onended = () => {
-                        URL.revokeObjectURL(url);
-                        isPlayingTTS = false;
-                        playNextTTS();
-                    };
-                    ttsAudioElement.onerror = () => {
-                        URL.revokeObjectURL(url);
-                        isPlayingTTS = false;
-                        playNextTTS();
-                    };
-                    await ttsAudioElement.play();
-                } else {
-                    isPlayingTTS = false;
-                    playNextTTS();
+
+                if (!response.ok) {
+                    return;
                 }
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                if (sessionId !== ttsSessionId) {
+                    revokeTTSUrl(url);
+                    return;
+                }
+
+                ttsResolvedChunks.set(chunkId, { url });
+                flushResolvedTTSChunks();
             } catch (e) {
-                console.error("TTS 请求失败", e);
-                isPlayingTTS = false;
-                playNextTTS();
+                console.error("TTS 预加载失败", e);
             }
+        }
+
+        function flushSentenceBufferToTTS(force = false) {
+            clearTimeout(ttsPreviewTimer);
+            const bufferedText = sentenceBuffer.trim();
+
+            if (!bufferedText) return false;
+            if (!force && bufferedText.length < TTS_PREVIEW_MIN_LENGTH && !/[，,、：:]/.test(bufferedText)) {
+                return false;
+            }
+
+            sentenceBuffer = "";
+            queueTTSChunk(bufferedText);
+            return true;
+        }
+
+        function scheduleTTSPreviewFlush() {
+            clearTimeout(ttsPreviewTimer);
+            if (!sentenceBuffer.trim()) return;
+
+            ttsPreviewTimer = setTimeout(() => {
+                flushSentenceBufferToTTS();
+            }, TTS_PREVIEW_IDLE_MS);
         }
 
         function processTTSStream(chunk, isDone = false) {
@@ -1492,19 +1597,19 @@
                 const sentence = sentenceBuffer.substring(0, index + matchLength).trim();
                 
                 if (sentence.length > 0) {
-                    ttsQueue.push(sentence);
-                    playNextTTS();
+                    queueTTSChunk(sentence);
                 }
                 
                 sentenceBuffer = sentenceBuffer.substring(index + matchLength);
             }
             
             // 如果是最后一句且没有标点
-            if (isDone && sentenceBuffer.trim().length > 0) {
-                ttsQueue.push(sentenceBuffer.trim());
-                playNextTTS();
-                sentenceBuffer = "";
+            if (isDone) {
+                flushSentenceBufferToTTS(true);
+                return;
             }
+
+            scheduleTTSPreviewFlush();
         }
 
         // ================= 弹窗控制逻辑 =================
@@ -1551,22 +1656,20 @@
             if (isVoiceMode) {
                 cancelVoice();
             }
-            
-            // 动画执行结束后处理
+
+            input.value = "";
+
+            const chatModal = document.getElementById('chat-modal');
+            const chatContent = document.getElementById('chat-content');
+            chatContent.innerText = '风正在感应你的心声...';
+            chatModal.classList.add('show');
+
             setTimeout(() => {
-                input.value = "";
-                // 移除动画类，恢复原位
                 icon.classList.remove('fly');
-                
-                // 弹出聊天窗口并初始化内容
-                const chatModal = document.getElementById('chat-modal');
-                const chatContent = document.getElementById('chat-content');
-                chatContent.innerText = '风正在感应你的心声...';
-                chatModal.classList.add('show');
-                
-                // 开始请求后端SSE流
-                fetchChatStream(text);
-            }, 1000);
+            }, 700);
+
+            // 不再等待发送按钮动画结束，直接发起请求，减少首字和首句语音延迟
+            fetchChatStream(text);
         }
         
         async function fetchChatStream(message) {
@@ -1618,6 +1721,7 @@
                         if (trimmedLine.startsWith('data: ')) {
                             const dataStr = trimmedLine.substring(6).trim();
                             if (dataStr === '[DONE]') {
+                                processTTSStream("", true);
                                 isSubmitting = false;
                                 return;
                             }
@@ -1679,6 +1783,171 @@
         let waveInterval = null;
         let recognition = null;
         let finalTranscript = '';
+        let voiceListenersBound = false;
+        let isStoppingVoice = false;
+
+        function getVoiceElements() {
+            return {
+                inputGroup: document.getElementById('input-group'),
+                input: document.getElementById('mind-input'),
+                voiceStatus: document.getElementById('voice-status'),
+                voiceActionBtn: document.getElementById('voice-action-btn'),
+                waveform: document.getElementById('waveform')
+            };
+        }
+
+        function activateVoiceUI(statusText = '正在倾听，请说话...') {
+            const { inputGroup, voiceStatus, voiceActionBtn, waveform } = getVoiceElements();
+            inputGroup.classList.add('voice-mode');
+            inputGroup.classList.add('recording');
+            voiceStatus.innerText = statusText;
+            voiceActionBtn.innerText = '说完了';
+            voiceActionBtn.disabled = false;
+            waveform.style.display = 'flex';
+            isVoiceMode = true;
+        }
+
+        function resetVoiceUI() {
+            const { inputGroup, voiceStatus, voiceActionBtn, waveform } = getVoiceElements();
+            inputGroup.classList.remove('voice-mode');
+            inputGroup.classList.remove('recording');
+            voiceStatus.innerText = '正在倾听...';
+            voiceActionBtn.innerText = '说完了';
+            voiceActionBtn.disabled = false;
+            waveform.style.display = 'flex';
+            isVoiceMode = false;
+            isStoppingVoice = false;
+            stopWaveAnimation();
+        }
+
+        function completeVoiceRecognition() {
+            resetVoiceUI();
+            isVoiceInput = true;
+        }
+
+        async function stopActiveRecognition() {
+            isStoppingVoice = true;
+
+            if (capSpeechRecognition) {
+                try {
+                    const listeningState = capSpeechRecognition.isListening ? await capSpeechRecognition.isListening() : { listening: true };
+                    if (listeningState.listening) {
+                        await capSpeechRecognition.stop();
+                    }
+                } catch (e) {}
+            } else if (recognition) {
+                try { recognition.stop(); } catch (e) {}
+            }
+        }
+
+        async function ensureSpeechPermission() {
+            if (capSpeechRecognition) {
+                let permission = null;
+
+                if (capSpeechRecognition.checkPermissions) {
+                    permission = await capSpeechRecognition.checkPermissions();
+                } else if (capSpeechRecognition.hasPermission) {
+                    permission = await capSpeechRecognition.hasPermission();
+                }
+
+                const granted = permission?.speechRecognition === 'granted' || permission?.permission === true;
+                if (granted) return;
+
+                if (capSpeechRecognition.requestPermissions) {
+                    permission = await capSpeechRecognition.requestPermissions();
+                } else if (capSpeechRecognition.requestPermission) {
+                    permission = await capSpeechRecognition.requestPermission();
+                }
+
+                const grantedAfterRequest = permission?.speechRecognition === 'granted' || permission?.permission === true;
+                if (!grantedAfterRequest) {
+                    throw new Error('speech-permission-denied');
+                }
+
+                return;
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('microphone-not-supported');
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach((track) => track.stop());
+        }
+
+        async function ensureCapSpeechListeners() {
+            if (!capSpeechRecognition || voiceListenersBound) return;
+
+            await capSpeechRecognition.addListener('partialResults', (data) => {
+                if (!isVoiceMode || isStoppingVoice || !data.matches || data.matches.length === 0) return;
+
+                finalTranscript = data.matches[0];
+                getVoiceElements().input.value = finalTranscript;
+            });
+
+            if (capSpeechRecognition.addListener) {
+                await capSpeechRecognition.addListener('listeningState', (data) => {
+                    if (!isVoiceMode) return;
+
+                    if (data.status === 'started') {
+                        getVoiceElements().voiceStatus.innerText = '正在倾听，请说话...';
+                    }
+
+                    if (data.status === 'stopped' && !isStoppingVoice) {
+                        const currentText = getVoiceElements().input.value.trim();
+                        if (currentText) {
+                            completeVoiceRecognition();
+                        } else {
+                            resetVoiceUI();
+                            showToast('没有听清，请再试一次');
+                        }
+                    }
+                });
+            }
+
+            voiceListenersBound = true;
+        }
+
+        async function startVoiceRecognition() {
+            finalTranscript = '';
+            isVoiceInput = false;
+            isStoppingVoice = false;
+
+            const { input, voiceStatus } = getVoiceElements();
+            input.value = '';
+
+            activateVoiceUI('正在准备麦克风...');
+            startWaveAnimation();
+
+            try {
+                await ensureSpeechPermission();
+
+                if (capSpeechRecognition) {
+                    await ensureCapSpeechListeners();
+                    const listeningState = capSpeechRecognition.isListening ? await capSpeechRecognition.isListening() : { listening: false };
+                    if (listeningState.listening) {
+                        await capSpeechRecognition.stop();
+                    }
+
+                    await capSpeechRecognition.start({
+                        language: "zh-CN",
+                        maxResults: 1,
+                        prompt: "请说话",
+                        partialResults: true,
+                        popup: false
+                    });
+                } else if (recognition) {
+                    try { recognition.abort(); } catch (e) {}
+                    recognition.start();
+                }
+
+                voiceStatus.innerText = '正在倾听，请说话...';
+            } catch (e) {
+                console.error("启动语音识别失败", e);
+                resetVoiceUI();
+                showToast("启动语音识别失败，请检查权限");
+            }
+        }
 
         // 初始化浏览器原生语音识别
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1701,10 +1970,24 @@
             };
 
             recognition.onerror = (event) => {
+                if (isStoppingVoice && event.error === 'aborted') return;
+
                 console.error("语音识别错误:", event.error);
-                if (event.error !== 'no-speech') {
+                if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     showToast("语音识别出错: " + event.error);
-                    cancelVoice();
+                    resetVoiceUI();
+                }
+            };
+
+            recognition.onend = () => {
+                if (!isVoiceMode || isStoppingVoice) return;
+
+                const currentText = getVoiceElements().input.value.trim();
+                if (currentText) {
+                    completeVoiceRecognition();
+                } else {
+                    resetVoiceUI();
+                    showToast("没有听清，请再试一次");
                 }
             };
         }
@@ -1714,125 +1997,41 @@
                 showToast("您的设备或浏览器不支持原生语音识别");
                 return;
             }
-            if (!isVoiceMode) {
-                try {
-                    // 请求麦克风权限（iOS需要显式授权）
-                    if (capSpeechRecognition) {
-                        const hasPerm = await capSpeechRecognition.hasPermission();
-                        if (!hasPerm.permission) {
-                            await capSpeechRecognition.requestPermission();
-                        }
-                    } else {
-                        await navigator.mediaDevices.getUserMedia({ audio: true }); 
-                    }
-                    
-                    const inputGroup = document.getElementById('input-group');
-                    inputGroup.classList.add('voice-mode');
-                    inputGroup.classList.add('recording');
-                    document.getElementById('waveform').style.display = 'flex';
-                    document.getElementById('voice-status').innerText = '正在倾听，请说话...';
-                    document.getElementById('voice-action-btn').innerText = '说完了';
-                    document.getElementById('voice-action-btn').disabled = false;
-                    document.getElementById('voice-action-btn').onclick = finishVoice;
-                    
-                    finalTranscript = '';
-                    document.getElementById('mind-input').value = '';
-                    
-                    if (capSpeechRecognition) {
-                        await capSpeechRecognition.start({
-                            language: "zh-CN",
-                            maxResults: 1,
-                            prompt: "请说话",
-                            partialResults: true,
-                            popup: false
-                        });
-                        
-                        capSpeechRecognition.addListener('partialResults', (data) => {
-                            if (data.matches && data.matches.length > 0) {
-                                document.getElementById('mind-input').value = data.matches[0];
-                            }
-                        });
-                    } else if (recognition) {
-                        recognition.start();
-                    }
-                    
-                    isVoiceMode = true;
-                    startWaveAnimation();
-                } catch (e) {
-                    console.error("启动语音识别失败", e);
-                    showToast("启动语音识别失败，请检查权限");
-                }
-            } else {
+            if (isVoiceMode) {
                 cancelVoice();
-            }
-        }
-
-        function cancelVoice() {
-            if (capSpeechRecognition) {
-                try { capSpeechRecognition.stop(); } catch(e) {}
-            } else if (recognition) {
-                try { recognition.stop(); } catch(e) {}
-            }
-            stopWaveAnimation();
-            const inputGroup = document.getElementById('input-group');
-            inputGroup.classList.remove('voice-mode');
-            inputGroup.classList.remove('recording');
-            isVoiceMode = false;
-        }
-
-        async function finishVoice() {
-            if (document.getElementById('voice-action-btn').disabled) return;
-            
-            if (document.getElementById('voice-action-btn').innerText === '重新说') {
-                // 点击重新说
-                finalTranscript = '';
-                document.getElementById('mind-input').value = "";
-                document.getElementById('voice-action-btn').innerText = '说完了';
-                document.getElementById('voice-status').innerText = '正在倾听，请说话...';
-                document.getElementById('input-group').classList.add('recording');
-                document.getElementById('waveform').style.display = 'flex';
-                
-                if (capSpeechRecognition) {
-                    try { 
-                        await capSpeechRecognition.start({
-                            language: "zh-CN",
-                            maxResults: 1,
-                            prompt: "请说话",
-                            partialResults: true,
-                            popup: false
-                        });
-                    } catch(e) {}
-                } else if (recognition) {
-                    try { recognition.start(); } catch(e) {}
-                }
-                
-                startWaveAnimation();
                 return;
             }
 
+            startVoiceRecognition();
+        }
+
+        async function cancelVoice() {
+            isVoiceInput = false;
+            await stopActiveRecognition();
+            resetVoiceUI();
+        }
+
+        async function finishVoice() {
+            if (getVoiceElements().voiceActionBtn.disabled || !isVoiceMode) return;
+
             // 点击说完了
-            if (capSpeechRecognition) {
-                try { await capSpeechRecognition.stop(); } catch(e) {}
-            } else if (recognition) {
-                try { recognition.stop(); } catch(e) {}
-            }
+            await stopActiveRecognition();
             stopWaveAnimation();
+            getVoiceElements().inputGroup.classList.remove('recording');
+
+            await new Promise((resolve) => setTimeout(resolve, 180));
             
-            const currentText = document.getElementById('mind-input').value.trim();
+            const currentText = getVoiceElements().input.value.trim();
             if (currentText) {
-                document.getElementById('voice-status').innerText = '识别完成，您可以直接发送或重新说';
-                document.getElementById('voice-action-btn').innerText = '重新说';
-                document.getElementById('voice-action-btn').disabled = false;
-                document.getElementById('waveform').style.display = 'none'; // 隐藏波形
-                document.getElementById('input-group').classList.remove('recording'); // 显示输入框和发送按钮
-                isVoiceInput = true; // 标记这是通过语音输入的
+                completeVoiceRecognition();
             } else {
                 showToast("没有听到声音，请重新说");
-                cancelVoice();
+                resetVoiceUI();
             }
         }
 
         function startWaveAnimation() {
+            clearInterval(waveInterval);
             const bars = document.querySelectorAll('.wave-bar');
             waveInterval = setInterval(() => {
                 bars.forEach(bar => {
@@ -1844,6 +2043,7 @@
 
         function stopWaveAnimation() {
             clearInterval(waveInterval);
+            waveInterval = null;
             document.querySelectorAll('.wave-bar').forEach(bar => {
                 bar.style.height = '4px';
             });
