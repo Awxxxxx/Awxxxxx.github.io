@@ -2,24 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.raw({ type: 'audio/wav', limit: '10mb' })); // 处理前端直接传来的 raw audio
 
-// 生成随机 UUID (替换原来的 uuid 包以避免 ESM 问题)
-function uuidv4() {
-    return crypto.randomUUID();
-}
-
 // Serve frontend files
 app.use(express.static('www'));
 
-const DEEPSEEK_API_KEY = 'sk-67137a3b55104238aa30608376b91f4d';
-const VOLCENGINE_APP_ID = '1436594062';
-const VOLCENGINE_TOKEN = 'F1I4Xoj_5bfJA0jklIdNh5suWaJY0MUx';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_API_BASE = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com';
 
 const SYSTEM_PROMPT = `你现在是“树洞天气”APP里一个温暖、有同理心、且像人类好朋友一样的倾听者。
 用户会在这里分享他们的喜怒哀乐，或者只是随口说一些日常琐事。请你根据用户输入的内容和情绪，给出个性化的回复。
@@ -32,6 +25,13 @@ const SYSTEM_PROMPT = `你现在是“树洞天气”APP里一个温暖、有同
 3. 篇幅限制：回复要简短精炼，不要长篇大论，字数尽量控制在 50 到 100 字之间。
 4. 交互限制：由于你与用户的交互是单次的，所以一定不要用问句结尾。`;
 
+app.get('/api/health', (_req, res) => {
+    res.json({
+        ok: true,
+        deepseekConfigured: Boolean(DEEPSEEK_API_KEY)
+    });
+});
+
 app.post('/api/chat', async (req, res) => {
     const userMessage = req.body.message;
 
@@ -42,11 +42,20 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+    }
+
+    if (!DEEPSEEK_API_KEY) {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'DEEPSEEK_API_KEY is not configured' })}\n\n`);
+        res.end();
+        return;
+    }
 
     try {
         const response = await axios({
             method: 'post',
-            url: 'https://api.deepseek.com/chat/completions',
+            url: `${DEEPSEEK_API_BASE.replace(/\/$/, '')}/chat/completions`,
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
@@ -66,7 +75,7 @@ app.post('/api/chat', async (req, res) => {
             const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
             for (const line of lines) {
                 if (line.replace(/^data: /, '') === '[DONE]') {
-                    res.write('event: done\\ndata: [DONE]\\n\\n');
+                    res.write('event: done\ndata: [DONE]\n\n');
                     res.end();
                     return;
                 }
@@ -75,7 +84,7 @@ app.post('/api/chat', async (req, res) => {
                         const parsed = JSON.parse(line.replace(/^data: /, ''));
                         if (parsed.choices && parsed.choices[0].delta.content) {
                             const content = parsed.choices[0].delta.content;
-                            res.write(`data: ${JSON.stringify({ content })}\\n\\n`);
+                            res.write(`data: ${JSON.stringify({ content })}\n\n`);
                         }
                     } catch (e) {
                         // ignore parse error for incomplete chunks or keep-alive pings
@@ -90,13 +99,13 @@ app.post('/api/chat', async (req, res) => {
 
         response.data.on('error', (err) => {
             console.error('Stream error:', err);
-            res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\\n\\n`);
+            res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
             res.end();
         });
 
     } catch (error) {
         console.error('DeepSeek API Error:', error.response ? error.response.data : error.message);
-        res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\\n\\n`);
+        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\n\n`);
         res.end();
     }
 });
