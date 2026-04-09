@@ -66,7 +66,7 @@ app.post('/api/chat', async (req, res) => {
             const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
             for (const line of lines) {
                 if (line.replace(/^data: /, '') === '[DONE]') {
-                    res.write('event: done\ndata: [DONE]\n\n');
+                    res.write('event: done\\ndata: [DONE]\\n\\n');
                     res.end();
                     return;
                 }
@@ -75,7 +75,7 @@ app.post('/api/chat', async (req, res) => {
                         const parsed = JSON.parse(line.replace(/^data: /, ''));
                         if (parsed.choices && parsed.choices[0].delta.content) {
                             const content = parsed.choices[0].delta.content;
-                            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                            res.write(`data: ${JSON.stringify({ content })}\\n\\n`);
                         }
                     } catch (e) {
                         // ignore parse error for incomplete chunks or keep-alive pings
@@ -90,13 +90,13 @@ app.post('/api/chat', async (req, res) => {
 
         response.data.on('error', (err) => {
             console.error('Stream error:', err);
-            res.write(`event: error\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+            res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Stream interrupted' })}\\n\\n`);
             res.end();
         });
 
     } catch (error) {
         console.error('DeepSeek API Error:', error.response ? error.response.data : error.message);
-        res.write(`event: error\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\n\n`);
+        res.write(`event: error\\ndata: ${JSON.stringify({ error: 'Service unavailable' })}\\n\\n`);
         res.end();
     }
 });
