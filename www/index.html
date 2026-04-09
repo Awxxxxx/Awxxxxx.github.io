@@ -320,62 +320,42 @@
             backdrop-filter: blur(15px);
             border: 1px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            transition: border-color 0.24s ease, border-radius 0.24s ease, min-height 0.24s cubic-bezier(0.22, 1, 0.36, 1), padding 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             width: 100%;
-            min-height: 56px;
             position: relative;
             overflow: hidden;
-            transform: translateZ(0);
         }
         .input-group.voice-mode {
-            border-radius: 28px;
+            border-radius: 24px;
             flex-direction: column;
             align-items: center;
-            padding: 18px 20px;
-            min-height: 168px;
+            padding: 20px;
             justify-content: center;
-            gap: 16px;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
         }
         .input-wrapper {
             display: flex;
             align-items: center;
             width: 100%;
-            position: relative;
-            max-height: 64px;
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), max-height 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+            transition: opacity 0.2s, visibility 0.2s;
         }
-        /* 当正在录音时平滑隐藏输入框，让录音态更跟手 */
-        .voice-mode.recording .input-wrapper {
+        /* 语音模式下直接隐藏输入框，文本显示在专门的区域 */
+        .voice-mode .input-wrapper {
             opacity: 0;
-            max-height: 0;
-            transform: translateY(-12px) scale(0.98);
+            visibility: hidden;
+            position: absolute;
             pointer-events: none;
         }
         .input-group input {
             flex: 1;
-            width: 100%;
-            min-width: 0;
             background: transparent;
             border: none;
-            padding: 10px 124px 10px 10px;
+            padding: 10px 10px;
             color: #ffffff;
             font-size: 1rem;
             outline: none;
         }
         .input-group input::placeholder {
             color: rgba(255, 255, 255, 0.6);
-        }
-        .input-actions {
-            position: absolute;
-            top: 50%;
-            right: 6px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transform: translateY(-50%);
         }
         .action-btn {
             background: #ffffff;
@@ -402,10 +382,10 @@
             fill: #333333;
         }
         .voice-btn {
-            margin-right: 0;
+            margin-right: 5px;
         }
         .submit-btn {
-            margin-left: 0;
+            margin-left: 5px;
         }
         /* 语音波形与控制区 */
         .voice-ui {
@@ -413,19 +393,27 @@
             flex-direction: column;
             align-items: center;
             width: 100%;
-            gap: 18px;
-            max-height: 0;
+            gap: 15px;
             opacity: 0;
-            overflow: hidden;
-            transform: translateY(14px) scale(0.98);
-            transition: max-height 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease, transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+            visibility: hidden;
+            position: absolute;
             pointer-events: none;
+            transition: opacity 0.3s, visibility 0.3s;
         }
         .voice-mode .voice-ui {
-            max-height: 220px;
             opacity: 1;
-            transform: translateY(0) scale(1);
+            visibility: visible;
+            position: relative;
             pointer-events: auto;
+        }
+        .voice-text {
+            color: #fff;
+            font-size: 1.1rem;
+            min-height: 1.5rem;
+            text-align: center;
+            width: 100%;
+            word-break: break-word;
+            margin-bottom: -5px;
         }
         .waveform {
             display: flex;
@@ -472,7 +460,6 @@
             font-size: 0.9rem;
             opacity: 0.8;
             margin-bottom: -10px;
-            transition: opacity 0.18s ease;
         }
 
         /* 底部版权 */
@@ -707,7 +694,7 @@
             100% { transform: translate(150px, -150px) scale(0.5) rotate(45deg); opacity: 0; }
         }
         .fly {
-            animation: flyAway 0.7s forwards ease-in-out;
+            animation: flyAway 1s forwards ease-in-out;
         }
 
         /* ================= Responsive ================= */
@@ -793,19 +780,17 @@
             <div class="input-group" id="input-group">
                 <div class="input-wrapper">
                     <input type="text" id="mind-input" placeholder="把心事说给风听，安全不留痕" autocomplete="off">
-                    <div class="input-actions">
-                        <button class="action-btn voice-btn" id="voice-toggle-btn" onclick="toggleVoiceMode()" aria-label="语音输入">
-                            <svg viewBox="0 0 24 24" width="20" height="20">
-                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                            </svg>
-                        </button>
-                        <button class="action-btn submit-btn" onclick="submitMind()" aria-label="发送">
-                            <svg id="plane-icon" viewBox="0 0 24 24">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                            </svg>
-                        </button>
-                    </div>
+                    <button class="action-btn voice-btn" id="voice-toggle-btn" onclick="toggleVoiceMode()" aria-label="语音输入">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                    <button class="action-btn submit-btn" onclick="submitMind()" aria-label="发送">
+                        <svg id="plane-icon" viewBox="0 0 24 24">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="voice-ui">
                     <div class="voice-status" id="voice-status">正在倾听...</div>
@@ -1494,17 +1479,22 @@
             if (isVoiceMode) {
                 cancelVoice();
             }
-
-            input.value = "";
-
+            
+            // 动画执行结束后处理
             setTimeout(() => {
+                input.value = "";
+                // 移除动画类，恢复原位
                 icon.classList.remove('fly');
+                
+                // 弹出聊天窗口并初始化内容
                 const chatModal = document.getElementById('chat-modal');
                 const chatContent = document.getElementById('chat-content');
                 chatContent.innerText = '风正在感应你的心声...';
                 chatModal.classList.add('show');
+                
+                // 开始请求后端SSE流
                 fetchChatStream(text);
-            }, 700);
+            }, 1000);
         }
         
         async function fetchChatStream(message) {
@@ -1615,171 +1605,6 @@
         let waveInterval = null;
         let recognition = null;
         let finalTranscript = '';
-        let voiceListenersBound = false;
-        let isStoppingVoice = false;
-
-        function getVoiceElements() {
-            return {
-                inputGroup: document.getElementById('input-group'),
-                input: document.getElementById('mind-input'),
-                voiceStatus: document.getElementById('voice-status'),
-                voiceActionBtn: document.getElementById('voice-action-btn'),
-                waveform: document.getElementById('waveform')
-            };
-        }
-
-        function activateVoiceUI(statusText = '正在倾听，请说话...') {
-            const { inputGroup, voiceStatus, voiceActionBtn, waveform } = getVoiceElements();
-            inputGroup.classList.add('voice-mode');
-            inputGroup.classList.add('recording');
-            voiceStatus.innerText = statusText;
-            voiceActionBtn.innerText = '说完了';
-            voiceActionBtn.disabled = false;
-            waveform.style.display = 'flex';
-            isVoiceMode = true;
-        }
-
-        function resetVoiceUI() {
-            const { inputGroup, voiceStatus, voiceActionBtn, waveform } = getVoiceElements();
-            inputGroup.classList.remove('voice-mode');
-            inputGroup.classList.remove('recording');
-            voiceStatus.innerText = '正在倾听...';
-            voiceActionBtn.innerText = '说完了';
-            voiceActionBtn.disabled = false;
-            waveform.style.display = 'flex';
-            isVoiceMode = false;
-            isStoppingVoice = false;
-            stopWaveAnimation();
-        }
-
-        function completeVoiceRecognition() {
-            resetVoiceUI();
-            isVoiceInput = true;
-        }
-
-        async function stopActiveRecognition() {
-            isStoppingVoice = true;
-
-            if (capSpeechRecognition) {
-                try {
-                    const listeningState = capSpeechRecognition.isListening ? await capSpeechRecognition.isListening() : { listening: true };
-                    if (listeningState.listening) {
-                        await capSpeechRecognition.stop();
-                    }
-                } catch (e) {}
-            } else if (recognition) {
-                try { recognition.stop(); } catch (e) {}
-            }
-        }
-
-        async function ensureSpeechPermission() {
-            if (capSpeechRecognition) {
-                let permission = null;
-
-                if (capSpeechRecognition.checkPermissions) {
-                    permission = await capSpeechRecognition.checkPermissions();
-                } else if (capSpeechRecognition.hasPermission) {
-                    permission = await capSpeechRecognition.hasPermission();
-                }
-
-                const granted = permission?.speechRecognition === 'granted' || permission?.permission === true;
-                if (granted) return;
-
-                if (capSpeechRecognition.requestPermissions) {
-                    permission = await capSpeechRecognition.requestPermissions();
-                } else if (capSpeechRecognition.requestPermission) {
-                    permission = await capSpeechRecognition.requestPermission();
-                }
-
-                const grantedAfterRequest = permission?.speechRecognition === 'granted' || permission?.permission === true;
-                if (!grantedAfterRequest) {
-                    throw new Error('speech-permission-denied');
-                }
-
-                return;
-            }
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('microphone-not-supported');
-            }
-
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach((track) => track.stop());
-        }
-
-        async function ensureCapSpeechListeners() {
-            if (!capSpeechRecognition || voiceListenersBound) return;
-
-            await capSpeechRecognition.addListener('partialResults', (data) => {
-                if (!isVoiceMode || isStoppingVoice || !data.matches || data.matches.length === 0) return;
-
-                finalTranscript = data.matches[0];
-                getVoiceElements().input.value = finalTranscript;
-            });
-
-            if (capSpeechRecognition.addListener) {
-                await capSpeechRecognition.addListener('listeningState', (data) => {
-                    if (!isVoiceMode) return;
-
-                    if (data.status === 'started') {
-                        getVoiceElements().voiceStatus.innerText = '正在倾听，请说话...';
-                    }
-
-                    if (data.status === 'stopped' && !isStoppingVoice) {
-                        const currentText = getVoiceElements().input.value.trim();
-                        if (currentText) {
-                            completeVoiceRecognition();
-                        } else {
-                            resetVoiceUI();
-                            showToast('没有听清，请再试一次');
-                        }
-                    }
-                });
-            }
-
-            voiceListenersBound = true;
-        }
-
-        async function startVoiceRecognition() {
-            finalTranscript = '';
-            isVoiceInput = false;
-            isStoppingVoice = false;
-
-            const { input, voiceStatus } = getVoiceElements();
-            input.value = '';
-
-            activateVoiceUI('正在准备麦克风...');
-            startWaveAnimation();
-
-            try {
-                await ensureSpeechPermission();
-
-                if (capSpeechRecognition) {
-                    await ensureCapSpeechListeners();
-                    const listeningState = capSpeechRecognition.isListening ? await capSpeechRecognition.isListening() : { listening: false };
-                    if (listeningState.listening) {
-                        await capSpeechRecognition.stop();
-                    }
-
-                    await capSpeechRecognition.start({
-                        language: "zh-CN",
-                        maxResults: 1,
-                        prompt: "请说话",
-                        partialResults: true,
-                        popup: false
-                    });
-                } else if (recognition) {
-                    try { recognition.abort(); } catch (e) {}
-                    recognition.start();
-                }
-
-                voiceStatus.innerText = '正在倾听，请说话...';
-            } catch (e) {
-                console.error("启动语音识别失败", e);
-                resetVoiceUI();
-                showToast("启动语音识别失败，请检查权限");
-            }
-        }
 
         // 初始化浏览器原生语音识别
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1791,35 +1616,23 @@
 
             recognition.onresult = (event) => {
                 let interimTranscript = '';
+                let currentFinal = finalTranscript;
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
                         finalTranscript += event.results[i][0].transcript;
+                        currentFinal = finalTranscript;
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
-                document.getElementById('mind-input').value = finalTranscript + interimTranscript;
+                document.getElementById('voice-text').innerText = currentFinal + interimTranscript;
             };
 
             recognition.onerror = (event) => {
-                if (isStoppingVoice && event.error === 'aborted') return;
-
                 console.error("语音识别错误:", event.error);
-                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                if (event.error !== 'no-speech') {
                     showToast("语音识别出错: " + event.error);
-                    resetVoiceUI();
-                }
-            };
-
-            recognition.onend = () => {
-                if (!isVoiceMode || isStoppingVoice) return;
-
-                const currentText = getVoiceElements().input.value.trim();
-                if (currentText) {
-                    completeVoiceRecognition();
-                } else {
-                    resetVoiceUI();
-                    showToast("没有听清，请再试一次");
+                    cancelVoice();
                 }
             };
         }
@@ -1829,41 +1642,91 @@
                 showToast("您的设备或浏览器不支持原生语音识别");
                 return;
             }
-            if (isVoiceMode) {
+            if (!isVoiceMode) {
+                try {
+                    // 请求麦克风权限（iOS需要显式授权）
+                    if (capSpeechRecognition) {
+                        const hasPerm = await capSpeechRecognition.hasPermission();
+                        if (!hasPerm.permission) {
+                            await capSpeechRecognition.requestPermission();
+                        }
+                    } else {
+                        await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                    }
+                    
+                    const inputGroup = document.getElementById('input-group');
+                    inputGroup.classList.add('voice-mode');
+                    document.getElementById('voice-status').innerText = '正在倾听，请说话...';
+                    
+                    finalTranscript = '';
+                    document.getElementById('voice-text').innerText = '';
+                    
+                    if (capSpeechRecognition) {
+                        await capSpeechRecognition.start({
+                            language: "zh-CN",
+                            maxResults: 1,
+                            prompt: "请说话",
+                            partialResults: true,
+                            popup: false
+                        });
+                        
+                        capSpeechRecognition.addListener('partialResults', (data) => {
+                            if (data.matches && data.matches.length > 0) {
+                                document.getElementById('voice-text').innerText = data.matches[0];
+                            }
+                        });
+                    } else if (recognition) {
+                        recognition.start();
+                    }
+                    
+                    isVoiceMode = true;
+                    startWaveAnimation();
+                } catch (e) {
+                    console.error("启动语音识别失败", e);
+                    showToast("启动语音识别失败，请检查权限");
+                }
+            } else {
                 cancelVoice();
-                return;
             }
-
-            startVoiceRecognition();
         }
 
-        async function cancelVoice() {
-            isVoiceInput = false;
-            await stopActiveRecognition();
-            resetVoiceUI();
+        function cancelVoice() {
+            if (capSpeechRecognition) {
+                try { capSpeechRecognition.stop(); } catch(e) {}
+            } else if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+            stopWaveAnimation();
+            const inputGroup = document.getElementById('input-group');
+            inputGroup.classList.remove('voice-mode');
+            isVoiceMode = false;
         }
 
         async function finishVoice() {
-            if (getVoiceElements().voiceActionBtn.disabled || !isVoiceMode) return;
+            if (document.getElementById('voice-action-btn').disabled) return;
 
             // 点击说完了
-            await stopActiveRecognition();
-            stopWaveAnimation();
-            getVoiceElements().inputGroup.classList.remove('recording');
-
-            await new Promise((resolve) => setTimeout(resolve, 180));
-            
-            const currentText = getVoiceElements().input.value.trim();
-            if (currentText) {
-                completeVoiceRecognition();
-            } else {
-                showToast("没有听到声音，请重新说");
-                resetVoiceUI();
+            if (capSpeechRecognition) {
+                try { await capSpeechRecognition.stop(); } catch(e) {}
+            } else if (recognition) {
+                try { recognition.stop(); } catch(e) {}
             }
+            stopWaveAnimation();
+            
+            const currentText = document.getElementById('voice-text').innerText.trim();
+            if (currentText) {
+                const inputField = document.getElementById('mind-input');
+                inputField.value = inputField.value ? inputField.value + currentText : currentText;
+            } else {
+                showToast("没有听到声音");
+            }
+            
+            const inputGroup = document.getElementById('input-group');
+            inputGroup.classList.remove('voice-mode');
+            isVoiceMode = false;
         }
 
         function startWaveAnimation() {
-            clearInterval(waveInterval);
             const bars = document.querySelectorAll('.wave-bar');
             waveInterval = setInterval(() => {
                 bars.forEach(bar => {
@@ -1875,7 +1738,6 @@
 
         function stopWaveAnimation() {
             clearInterval(waveInterval);
-            waveInterval = null;
             document.querySelectorAll('.wave-bar').forEach(bar => {
                 bar.style.height = '4px';
             });
