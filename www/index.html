@@ -1606,10 +1606,42 @@
         let waveInterval = null;
         let recognition = null;
         let finalTranscript = '';
+        let mediaStream = null;
 
-        // 初始化浏览器原生语音识别
+        function getSpeechErrorMessage(error) {
+            if (!error) return '未知错误';
+            if (typeof error === 'string') return error;
+            return error.message || error.errorMessage || error.localizedDescription || error.code || JSON.stringify(error);
+        }
+
+        function isSpeechPluginUnavailable(error) {
+            const message = getSpeechErrorMessage(error);
+            return /not implemented|unimplemented|unable to find plugin|plugin.*not.*implemented/i.test(message);
+        }
+
+        async function getNativeSpeechRecognition() {
+            const isNativeApp = !!(window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() !== 'web');
+            if (!isNativeApp || !capSpeechRecognition) return null;
+
+            try {
+                const availability = await capSpeechRecognition.available();
+                if (availability && availability.available === false) {
+                    return null;
+                }
+                return capSpeechRecognition;
+            } catch (error) {
+                if (isSpeechPluginUnavailable(error)) {
+                    capSpeechRecognition = null;
+                    return null;
+                }
+                throw error;
+            }
+        }
+
+        // 初始化浏览器原生语音识别（仅在不使用原生插件时才初始化，避免iOS AudioSession冲突）
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
+        function initWebSpeechRecognition() {
+            if (!SpeechRecognition || recognition) return;
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-CN';
             recognition.continuous = true; // 连续识别
@@ -1639,20 +1671,38 @@
         }
 
         async function toggleVoiceMode() {
-            if (!SpeechRecognition && !capSpeechRecognition) {
-                showToast("您的设备或浏览器不支持原生语音识别");
-                return;
-            }
             if (!isVoiceMode) {
                 try {
+                    capSpeechRecognition = await getNativeSpeechRecognition();
+
+                    if (!SpeechRecognition && !capSpeechRecognition) {
+                        showToast("当前环境不支持语音识别");
+                        return;
+                    }
+
                     // 请求麦克风权限（iOS需要显式授权）
                     if (capSpeechRecognition) {
-                        const hasPerm = await capSpeechRecognition.hasPermission();
-                        if (!hasPerm.permission) {
-                            await capSpeechRecognition.requestPermission();
+                        try {
+                            let hasPerm = await capSpeechRecognition.checkPermissions();
+                            if (hasPerm.speechRecognition !== 'granted') {
+                                hasPerm = await capSpeechRecognition.requestPermissions();
+                            }
+                            if (hasPerm.speechRecognition !== 'granted') {
+                                throw new Error("您拒绝了语音识别权限，请前往系统设置开启");
+                            }
+                        } catch (permErr) {
+                            if (isSpeechPluginUnavailable(permErr)) {
+                                // 如果是在网页环境或未同步原生插件，降级
+                                capSpeechRecognition = null;
+                            } else {
+                                throw permErr;
+                            }
                         }
-                    } else {
-                        await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                    }
+                    
+                    if (!capSpeechRecognition) {
+                        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true }); 
+                        initWebSpeechRecognition();
                     }
                     
                     const inputGroup = document.getElementById('input-group');
@@ -1663,17 +1713,26 @@
                     document.getElementById('voice-text').innerText = '';
                     
                     if (capSpeechRecognition) {
+                        // 每次启动前先清理旧的监听器，防止重复绑定
+                        await capSpeechRecognition.removeAllListeners();
+                        
                         await capSpeechRecognition.start({
                             language: "zh-CN",
                             maxResults: 1,
-                            prompt: "请说话",
-                            partialResults: true,
-                            popup: false
+                            partialResults: true
                         });
                         
                         capSpeechRecognition.addListener('partialResults', (data) => {
                             if (data.matches && data.matches.length > 0) {
                                 document.getElementById('voice-text').innerText = data.matches[0];
+                            }
+                        });
+                        
+                        // 监听识别停止事件
+                        capSpeechRecognition.addListener('listeningState', (data) => {
+                            if (data.status === 'stopped' && isVoiceMode) {
+                                // 如果是被系统打断，自动结束当前识别
+                                finishVoice();
                             }
                         });
                     } else if (recognition) {
@@ -1684,18 +1743,30 @@
                     startWaveAnimation();
                 } catch (e) {
                     console.error("启动语音识别失败", e);
-                    showToast("启动语音识别失败，请检查权限");
+                    // 发生错误时，清理已经获取的麦克风流，防止黄点驻留
+                    if (mediaStream) {
+                        mediaStream.getTracks().forEach(track => track.stop());
+                        mediaStream = null;
+                    }
+                    showToast("启动语音识别失败: " + getSpeechErrorMessage(e));
                 }
             } else {
                 cancelVoice();
             }
         }
 
-        function cancelVoice() {
+        async function cancelVoice() {
             if (capSpeechRecognition) {
-                try { capSpeechRecognition.stop(); } catch(e) {}
+                try { 
+                    await capSpeechRecognition.stop(); 
+                    await capSpeechRecognition.removeAllListeners();
+                } catch(e) {}
             } else if (recognition) {
                 try { recognition.stop(); } catch(e) {}
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
             }
             stopWaveAnimation();
             const inputGroup = document.getElementById('input-group');
@@ -1708,9 +1779,16 @@
 
             // 点击说完了
             if (capSpeechRecognition) {
-                try { await capSpeechRecognition.stop(); } catch(e) {}
+                try { 
+                    await capSpeechRecognition.stop(); 
+                    await capSpeechRecognition.removeAllListeners();
+                } catch(e) {}
             } else if (recognition) {
                 try { recognition.stop(); } catch(e) {}
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
             }
             stopWaveAnimation();
             
