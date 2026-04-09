@@ -1534,7 +1534,8 @@
                     if (done) break;
 
                     buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
+                    // 兼容本地最新代码(\n)和线上可能未更新的旧代码(\\n)的换行符
+                    const lines = buffer.split(/\n|\\n/);
                     
                     // 保留最后一行如果不完整
                     buffer = lines.pop() || '';
