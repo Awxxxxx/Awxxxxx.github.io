@@ -2,15 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.raw({ type: 'audio/wav', limit: '10mb' })); // 处理前端直接传来的 raw audio
+
+// 生成随机 UUID (替换原来的 uuid 包以避免 ESM 问题)
+function uuidv4() {
+    return crypto.randomUUID();
+}
 
 // Serve frontend files
 app.use(express.static('www'));
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-67137a3b55104238aa30608376b91f4d';
+const DEEPSEEK_API_KEY = 'sk-67137a3b55104238aa30608376b91f4d';
+const VOLCENGINE_APP_ID = '1436594062';
+const VOLCENGINE_TOKEN = 'F1I4Xoj_5bfJA0jklIdNh5suWaJY0MUx';
 
 const SYSTEM_PROMPT = `你现在是“树洞天气”APP里一个温暖、有同理心、且像人类好朋友一样的倾听者。
 用户会在这里分享他们的喜怒哀乐，或者只是随口说一些日常琐事。请你根据用户输入的内容和情绪，给出个性化的回复。
