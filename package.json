@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor/core": "^8.3.0",
     "@capacitor/geolocation": "^8.1.0",
     "@capacitor/ios": "^8.3.0",
@@ -180,6 +181,7 @@
     "@capacitor/cli": "^8.3.0"
   },
   "scripts": {
+    "postinstall": "node scripts/ensure-speech-recognition-spm.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
