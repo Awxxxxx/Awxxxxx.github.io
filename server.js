@@ -186,7 +186,7 @@ app.post('/api/generate-card', async (req, res) => {
                 model: VOLCENGINE_ENDPOINT,
                 prompt: finalImagePrompt,
                 negative_prompt: negativePrompt,
-                size: "1536x2048" // 3:4 ratio
+                size: "1728x2304" // 3:4 ratio (minimum 3686400 pixels required)
             }
         });
 
