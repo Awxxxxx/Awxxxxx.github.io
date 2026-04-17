@@ -101,35 +101,17 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-app.post('/api/generate-card', async (req, res) => {
-    const { date, weather, user_text, ai_text } = req.body;
+app.post('/api/widget-text', async (req, res) => {
+    const { weather, date } = req.body;
 
-    if (!date || !weather || !user_text || !ai_text) {
-        return res.status(400).json({ error: 'Missing required fields' });
+    if (!weather || !date) {
+        return res.status(400).json({ error: 'Weather and date are required' });
     }
 
+    const prompt = `今天的天气是${weather}，今天的日期是${date}，请你根据天气信息，生成一句鼓励我的话，长度控制在20-30个中文字符之间。如果今天的日期${date}是一个比较欢快的节日（如春节、圣诞节、情人节）或周末（周六周日），那么你也需要把日期因素考虑进来用于文案的生成。`;
+
     try {
-        const promptForLLM = `你是一个温暖治愈的心理咨询师。
-现在，我们的用户在“树洞天气”APP中倾诉了心事。
-
-【当前信息】
-- 日期：${date}
-- 天气：${weather}
-- 用户心事：${user_text}
-- AI的回复：${ai_text}
-
-【你的任务】
-提炼金句 (quote)：
-请仔细体会用户的情绪，写一句15-25字的中文鼓励/治愈短句，用于印在心情气象卡上。
-要求：绝对不能直接暴露用户的心事！要把具体的心事转化为充满哲理、温暖治愈的安慰。语气要像一个温柔的朋友。
-
-【输出格式】
-严格按照以下 JSON 格式输出，不要包含任何 markdown 标记（如 \`\`\`json）或其他多余的解释文字：
-{
-  "quote": "你提炼的中文治愈金句"
-}`;
-
-        const deepseekResponse = await axios({
+        const response = await axios({
             method: 'post',
             url: 'https://api.deepseek.com/chat/completions',
             headers: {
@@ -139,31 +121,20 @@ app.post('/api/generate-card', async (req, res) => {
             data: {
                 model: 'deepseek-chat',
                 messages: [
-                    { role: 'user', content: promptForLLM }
+                    { role: 'user', content: prompt }
                 ],
-                response_format: { type: 'json_object' }
+                stream: false
             }
         });
 
-        const llmContent = deepseekResponse.data.choices[0].message.content;
-        let parsedResult;
-        try {
-            const cleaned = llmContent.replace(/```json/g, '').replace(/```/g, '').trim();
-            parsedResult = JSON.parse(cleaned);
-        } catch (e) {
-            console.error('Failed to parse DeepSeek response:', llmContent);
-            return res.status(500).json({ error: 'Failed to parse AI response' });
+        if (response.data && response.data.choices && response.data.choices.length > 0) {
+            res.json({ text: response.data.choices[0].message.content });
+        } else {
+            res.status(500).json({ error: 'Failed to generate text' });
         }
-
-        const { quote } = parsedResult;
-
-        res.json({
-            quote
-        });
-
     } catch (error) {
-        console.error('Generate Card Error:', error.response ? error.response.data : error.message);
-        res.status(500).json({ error: 'Failed to generate card text' });
+        console.error('DeepSeek API Error (widget):', error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Service unavailable' });
     }
 });
 
